@@ -4,6 +4,8 @@
 it in Blender like any add-on · extract it anywhere to also run the desktop editor and the
 harvesting tools.
 
+DISCLAIMER: THIS PROJECT WAS MADE WITH THE HELP OF CLAUDE CODE. THIS IS TO GIVE EVERYONE WHO USES THIS A HEADS UP. 
+
 | I want to… | Do this |
 |---|---|
 | Put a variant on a model in Blender | Install `VariantEditor.zip`, then *File ▸ Import ▸ JWE3 Variant (.fgm)* |
