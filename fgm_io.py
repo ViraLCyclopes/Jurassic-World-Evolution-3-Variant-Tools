@@ -274,7 +274,11 @@ def species_sex_from_filename(path: str) -> tuple:
 
 
 # Sample FGM for testing
-SAMPLE_FGM = r"D:\JWE2 Stuff\Cobra Tool Versions\Main Mod Kit\JWE 3 Luas\Base Game\Dinosaur Files\Base Game Dinos\Baryonyx\Female\baryonyx_variant_01_00.fgm"
+_game_ovl = cfg.get("game_dir")
+SAMPLE_FGM = os.environ.get("JWE3_SAMPLE_FGM") or (
+    os.path.join(_game_ovl, "Content0", "Dinosaurs", "Baryonyx", "Female", "baryonyx_variant_01_00.fgm")
+    if _game_ovl else os.path.join(HERE, "Textures", "Baryonyx", "baryonyx_variant_01_00.fgm")
+)
 
 
 def selftest():

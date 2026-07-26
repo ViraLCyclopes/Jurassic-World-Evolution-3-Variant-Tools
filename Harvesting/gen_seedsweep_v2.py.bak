@@ -35,14 +35,12 @@ import struct
 import sys
 import time
 
+REPO = r"d:\JWE2 Stuff\Cobra Tool Versions\Main Mod Kit\cobra-tools-master"
+GAME = "Jurassic World Evolution 3"
 HERE = os.path.dirname(os.path.abspath(__file__))
 import _hpaths  # noqa: E402  (package paths; puts the package + vendor/ on sys.path)
 RESEARCH = _hpaths.PKG                                   # for the vendored module imports below
 KIT = os.environ.get("JWE3_BACKUP_DIR") or _hpaths.backup_root()
-
-import jwe3_config
-REPO = jwe3_config.get("cobra_tools")
-GAME = "Jurassic World Evolution 3"
 
 
 def find_dinodir():

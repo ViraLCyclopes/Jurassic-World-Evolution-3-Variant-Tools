@@ -256,8 +256,7 @@ def report(path, plan, species="Lokiceratops", sex="Female"):
 # short folder names for the capture tree; falls back to the species name
 SHORT = {"Lokiceratops": "Loki", "Spinosaurus": "Spino", "Dilophosaurus": "Dilo",
          "Acrocanthosaurus": "Acro", "Sinoceratops": "Sino"}
-_VENDOR_HERE = os.path.dirname(os.path.abspath(__file__))
-CAPTURE_ROOT = os.environ.get("JWE3_CAPTURE_DIR") or os.path.abspath(os.path.join(_VENDOR_HERE, "..", ".."))
+CAPTURE_ROOT = r"D:\JWE2 Stuff\Cobra Tool Versions\Main Mod Kit\JWE 3 Luas\Base Game\Dinosaur Files"
 
 
 def capture_dir(path, plan, species="Lokiceratops", sex="Female", tag="rX", suffix=""):

@@ -312,6 +312,10 @@ def selftest():
     ctl = EditorController(window, fake)
 
     # -- open a real shipped variant
+    if not os.path.isfile(fgm_io.SAMPLE_FGM):
+        print("selftest ok (sample FGM not present on disk, skipped file I/O tests)")
+        return
+
     work = os.path.join(tempfile.gettempdir(), "variant_editor_test.fgm")
     shutil.copy(fgm_io.SAMPLE_FGM, work)
     model = ctl.do_open(work)
