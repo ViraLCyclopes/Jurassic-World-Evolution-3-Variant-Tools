@@ -1,0 +1,53 @@
+name: Build add-on zip
+
+# Builds a tidy installable zip: code and data only, without the repo scaffolding, under a single
+# `VariantEditor/` folder. The GitHub source zip installs fine too (Blender loads add-ons by folder
+# name via importlib, so hyphens are harmless) -- this is just smaller and cleaner.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:          # lets you build a zip without tagging a release
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check the package would build correctly
+        run: python build_addon.py --selftest
+
+      - name: Run the module self-tests
+        run: |
+          python variant_model.py
+          python jwe3_config.py
+          python palette_preview.py
+          python preview_assets.py
+          python vendor/_paths.py
+        # fgm_io / preview_bridge / the UI need cobra-tools, PyQt5 or Blender, so they are not run
+        # in CI. They are covered by the local test list in README.md.
+
+      - name: Build
+        run: python build_addon.py --out VariantEditor.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VariantEditor
+          path: VariantEditor.zip
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: VariantEditor.zip
+          body: |
+            **Install in Blender:** download `VariantEditor.zip` below, then
+            *Edit ▸ Preferences ▸ Add-ons ▸ ⌄ ▸ Install from Disk…*
+
+            The "Source code (zip)" links work as well — this one is just smaller and contains no
+            repo scaffolding.

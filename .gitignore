@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Build output
+/VariantEditor.zip
+/Build/
+/PaletteJSON/
+
+# Game assets -- NEVER commit these. They are Frontier's, not ours to redistribute.
+# The folders themselves ship with only their README, which is why those are un-ignored below.
+/SwatchLibrary/*
+!/SwatchLibrary/*.md
+/Textures/*
+!/Textures/*.md
+*.png
+*.dds
+*.tex
+*.ovl
+*.ms2
+*.fgm
+*.rdc
+
+# Per-user run-time state lives outside the install (see Harvesting/_hpaths.py), but ignore it
+# here too in case someone runs an older build in place.
+seedsweep_manifest.json
+seedsweep_seeds.json
+SEEDSWEEP_SPAWN_LIST.txt
+Backup_SeedSweep*/
+
+# Editors
+.vscode/
+.idea/
+*.swp

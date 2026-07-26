@@ -1,0 +1,982 @@
+{
+ "species": "IndominusRex",
+ "sex": "Female",
+ "layers": [
+  {
+   "index": 0,
+   "layer_no": 1,
+   "swatch": "Swatch_Mouth_Flesh",
+   "transform_fgm": "IndominusRex_Layer_01",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 10,
+    "pHeightTexture": 10,
+    "pPackedTexture": 10,
+    "pRemapTexture": 10
+   },
+   "swatch_colour_weight": 0.0,
+   "blend_texture": 0,
+   "blend_channel": "R",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     0.0
+    ],
+    "pGlobalColouringWeight": [
+     0.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.0
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.003000000026077032
+    ],
+    "pRemapLutIndex": [
+     3.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     0.0
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     25.0,
+     25.0
+    ]
+   }
+  },
+  {
+   "index": 1,
+   "layer_no": 2,
+   "swatch": "Swatch_Orni_Cory_LeatherScales",
+   "transform_fgm": "IndominusRex_Layer_02",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 12,
+    "pHeightTexture": 12,
+    "pPackedTexture": 12,
+    "pRemapTexture": 12
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 0,
+   "blend_channel": "G",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     0.44999998807907104
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.0
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.004000000189989805
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     1.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     -0.5
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     6.0,
+     6.0
+    ]
+   }
+  },
+  {
+   "index": 2,
+   "layer_no": 3,
+   "swatch": "Swatch_Orni_Cory_LeatherScales",
+   "transform_fgm": "IndominusRex_Layer_03",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 12,
+    "pHeightTexture": 12,
+    "pPackedTexture": 12,
+    "pRemapTexture": 12
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 0,
+   "blend_channel": "B",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     1.4900000095367432
+    ],
+    "pHeightBlendScaleB": [
+     -0.1599999964237213
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.0010000000474974513
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     -0.44999998807907104
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     50.0,
+     50.0
+    ]
+   }
+  },
+  {
+   "index": 3,
+   "layer_no": 4,
+   "swatch": "Swatch_Anky_Ankylo_DeepWrinkles",
+   "transform_fgm": "IndominusRex_Layer_04",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 1,
+    "pHeightTexture": 1,
+    "pPackedTexture": 1,
+    "pRemapTexture": 1
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 0,
+   "blend_channel": "A",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     0.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.0
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.009999999776482582
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     0.5
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     23.0,
+     23.0
+    ]
+   }
+  },
+  {
+   "index": 4,
+   "layer_no": 5,
+   "swatch": "Swatch_Thero_Spino_RoundVaried",
+   "transform_fgm": "IndominusRex_Layer_05",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 46,
+    "pHeightTexture": 46,
+    "pPackedTexture": 46,
+    "pRemapTexture": 46
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 1,
+   "blend_channel": "R",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.5299999713897705
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.004999999888241291
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     0.0
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     15.0,
+     15.0
+    ]
+   }
+  },
+  {
+   "index": 5,
+   "layer_no": 6,
+   "swatch": "Swatch_Thero_Spino_RoundVaried",
+   "transform_fgm": "IndominusRex_Layer_06",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 46,
+    "pHeightTexture": 46,
+    "pPackedTexture": 46,
+    "pRemapTexture": 46
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 1,
+   "blend_channel": "G",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.0
+    ],
+    "pHeightOffset": [
+     0.009999999776482582
+    ],
+    "pHeightScale": [
+     0.006000000052154064
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     0.0
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     10.0,
+     10.0
+    ]
+   }
+  },
+  {
+   "index": 6,
+   "layer_no": 7,
+   "swatch": "Swatch_Thero_Spino_RoundVaried",
+   "transform_fgm": "IndominusRex_Layer_07",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 46,
+    "pHeightTexture": 46,
+    "pPackedTexture": 46,
+    "pRemapTexture": 46
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 1,
+   "blend_channel": "B",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     0.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.5099999904632568
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.004999999888241291
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     0.0
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     30.0,
+     30.0
+    ]
+   }
+  },
+  {
+   "index": 7,
+   "layer_no": 8,
+   "swatch": "Swatch_Thero_Raptor_LongRoundScales",
+   "transform_fgm": "IndominusRex_Layer_08",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 40,
+    "pHeightTexture": 40,
+    "pPackedTexture": 40,
+    "pRemapTexture": 40
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 1,
+   "blend_channel": "A",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     0.8299999833106995
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     0.5099999904632568
+    ],
+    "pHeightBlendScaleB": [
+     2.059999942779541
+    ],
+    "pHeightOffset": [
+     0.07999999821186066
+    ],
+    "pHeightScale": [
+     0.029999999329447746
+    ],
+    "pRemapLutIndex": [
+     3.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5400000214576721,
+     0.5600000023841858
+    ],
+    "pUVRotationAngle": [
+     0.0
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     18.0,
+     18.0
+    ]
+   }
+  },
+  {
+   "index": 8,
+   "layer_no": 9,
+   "swatch": "Swatch_Thyreo_Stego_Square",
+   "transform_fgm": "IndominusRex_Layer_09",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 53,
+    "pHeightTexture": 53,
+    "pPackedTexture": 53,
+    "pRemapTexture": 53
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 2,
+   "blend_channel": "R",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     -0.28999999165534973
+    ],
+    "pHeightBlendScaleB": [
+     -1.5399999618530273
+    ],
+    "pHeightOffset": [
+     0.029999999329447746
+    ],
+    "pHeightScale": [
+     0.007000000216066837
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     1.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     -0.25999999046325684
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     16.0,
+     16.0
+    ]
+   }
+  },
+  {
+   "index": 9,
+   "layer_no": 10,
+   "swatch": "Swatch_Anky_Ankylo_DeepWrinkles",
+   "transform_fgm": "IndominusRex_Layer_10",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 1,
+    "pHeightTexture": 1,
+    "pPackedTexture": 1,
+    "pRemapTexture": 1
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 2,
+   "blend_channel": "G",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     2.2300000190734863
+    ],
+    "pHeightBlendScaleB": [
+     0.0
+    ],
+    "pHeightOffset": [
+     -0.009999999776482582
+    ],
+    "pHeightScale": [
+     0.009999999776482582
+    ],
+    "pRemapLutIndex": [
+     0.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     0.05999999865889549
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     22.0,
+     22.0
+    ]
+   }
+  },
+  {
+   "index": 10,
+   "layer_no": 11,
+   "swatch": "Swatch_Thero_IndominusRex_ScalesFlatLong",
+   "transform_fgm": "IndominusRex_Layer_11",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 35,
+    "pHeightTexture": 35,
+    "pPackedTexture": 35,
+    "pRemapTexture": 35
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 2,
+   "blend_channel": "B",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     1.0199999809265137
+    ],
+    "pHeightBlendScaleB": [
+     2.259999990463257
+    ],
+    "pHeightOffset": [
+     -0.07000000029802322
+    ],
+    "pHeightScale": [
+     0.014999999664723873
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     0.0
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     16.0,
+     16.0
+    ]
+   }
+  },
+  {
+   "index": 11,
+   "layer_no": 12,
+   "swatch": "Swatch_Bone",
+   "transform_fgm": "IndominusRex_Layer_12",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 5,
+    "pHeightTexture": 5,
+    "pPackedTexture": 5,
+    "pRemapTexture": 5
+   },
+   "swatch_colour_weight": 0.0,
+   "blend_texture": 2,
+   "blend_channel": "A",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     0.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.0
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.0005000000237487257
+    ],
+    "pRemapLutIndex": [
+     1.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     0.0
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     25.0,
+     25.0
+    ]
+   }
+  },
+  {
+   "index": 12,
+   "layer_no": 13,
+   "swatch": "Swatch_Thyreo_Stego_Square",
+   "transform_fgm": "IndominusRex_Layer_13",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 53,
+    "pHeightTexture": 53,
+    "pPackedTexture": 53,
+    "pRemapTexture": 53
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 3,
+   "blend_channel": "R",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     -0.47999998927116394
+    ],
+    "pHeightBlendScaleB": [
+     -1.1100000143051147
+    ],
+    "pHeightOffset": [
+     0.11999999731779099
+    ],
+    "pHeightScale": [
+     0.009999999776482582
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.7200000286102295,
+     0.4000000059604645
+    ],
+    "pUVRotationAngle": [
+     -0.49000000953674316
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     17.0,
+     19.0
+    ]
+   }
+  },
+  {
+   "index": 13,
+   "layer_no": 14,
+   "swatch": "Swatch_Thero_Raptor_Scutes",
+   "transform_fgm": "IndominusRex_Layer_14",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 41,
+    "pHeightTexture": 41,
+    "pPackedTexture": 41,
+    "pRemapTexture": 41
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 3,
+   "blend_channel": "G",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.0
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.009999999776482582
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5099999904632568
+    ],
+    "pUVRotationAngle": [
+     0.0
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     27.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "index": 14,
+   "layer_no": 15,
+   "swatch": "Swatch_Orni_Para_StripedSkinBack_01",
+   "transform_fgm": "IndominusRex_Layer_15",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 16,
+    "pHeightTexture": 16,
+    "pPackedTexture": 16,
+    "pRemapTexture": 16
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 3,
+   "blend_channel": "B",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     0.9900000095367432
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.0
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.1599999964237213
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     0.05000000074505806
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     16.0,
+     16.0
+    ]
+   }
+  },
+  {
+   "index": 15,
+   "layer_no": 16,
+   "swatch": "Swatch_Orni_Para_StripedSkinBack_01",
+   "transform_fgm": "IndominusRex_Layer_16",
+   "used": true,
+   "increment_channel": 1,
+   "slices": {
+    "pDiffuseTexture": 16,
+    "pHeightTexture": 16,
+    "pPackedTexture": 16,
+    "pRemapTexture": 16
+   },
+   "swatch_colour_weight": 1.0,
+   "blend_texture": 3,
+   "blend_channel": "A",
+   "params": {
+    "pDiffuseContrast": [
+     1.0
+    ],
+    "pDiffuseSaturation": [
+     1.0
+    ],
+    "pGlobalColouringWeight": [
+     1.0
+    ],
+    "pHeightBlendScaleA": [
+     0.0
+    ],
+    "pHeightBlendScaleB": [
+     0.0
+    ],
+    "pHeightOffset": [
+     0.0
+    ],
+    "pHeightScale": [
+     0.12999999523162842
+    ],
+    "pRemapLutIndex": [
+     2.0
+    ],
+    "pUVEnableProjection": [
+     0.0
+    ],
+    "pUVOffset": [
+     0.5,
+     0.5
+    ],
+    "pUVRotationAngle": [
+     -0.44999998807907104
+    ],
+    "pUVRotationPosition": [
+     0.0,
+     0.0
+    ],
+    "pUVTile": [
+     9.0,
+     9.0
+    ]
+   }
+  }
+ ]
+}

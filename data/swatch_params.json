@@ -1,0 +1,4127 @@
+{
+ "swatch_anky_ankylo_backplates.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    0.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 0
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 0
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 0
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 0
+    }
+   ]
+  }
+ },
+ "swatch_anky_ankylo_deepwrinkles.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 1
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 1
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 1
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 1
+    }
+   ]
+  }
+ },
+ "swatch_anky_ankylo_largescales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 2
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 2
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 2
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 2
+    }
+   ]
+  }
+ },
+ "swatch_anky_ankylo_largescales_01.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    0.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 3
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 3
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 3
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 3
+    }
+   ]
+  }
+ },
+ "swatch_anky_ankylo_smallscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    0.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 4
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 4
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 4
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 4
+    }
+   ]
+  }
+ },
+ "swatch_bone.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    0.0
+   ],
+   "pGlobalEffectModifier": [
+    0.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 5
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 5
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 5
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 5
+    }
+   ]
+  }
+ },
+ "swatch_cera_tri_elephantskin.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 6
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 6
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 6
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 6
+    }
+   ]
+  }
+ },
+ "swatch_cera_tri_elephantskin_01.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 8
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 8
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 8
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 8
+    }
+   ]
+  }
+ },
+ "swatch_cera_tri_elephantskinsoft.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 7
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 7
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 7
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 7
+    }
+   ]
+  }
+ },
+ "swatch_cera_tri_scales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 9
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 9
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 9
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 9
+    }
+   ]
+  }
+ },
+ "swatch_mouth_flesh.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    0.0
+   ],
+   "pGlobalEffectModifier": [
+    0.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 10
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 10
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 10
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 10
+    }
+   ]
+  }
+ },
+ "swatch_nail.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    0.0
+   ],
+   "pGlobalEffectModifier": [
+    0.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 11
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 11
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 11
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 11
+    }
+   ]
+  }
+ },
+ "swatch_orni_cory_leatherscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 12
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 12
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 12
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 12
+    }
+   ]
+  }
+ },
+ "swatch_orni_edmon_scalesround.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 13
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 13
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 13
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 13
+    }
+   ]
+  }
+ },
+ "swatch_orni_edmon_skinscalyleather_wheat_01.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 14
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 14
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 14
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 14
+    }
+   ]
+  }
+ },
+ "swatch_orni_para_spottedskinside_01.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 15
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 15
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 15
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 15
+    }
+   ]
+  }
+ },
+ "swatch_orni_para_stripedskinback_01.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 16
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 16
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 16
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 16
+    }
+   ]
+  }
+ },
+ "swatch_raptor_scale_large_square_master.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    0.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 17
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 17
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 17
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 17
+    }
+   ]
+  }
+ },
+ "swatch_raptor_scales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 18
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 18
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 18
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 18
+    }
+   ]
+  }
+ },
+ "swatch_raptor_scales_01.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 19
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 19
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 19
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 19
+    }
+   ]
+  }
+ },
+ "swatch_raptor_scales_02.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 20
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 20
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 20
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 20
+    }
+   ]
+  }
+ },
+ "swatch_sauro_apato_neckskin.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 21
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 21
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 21
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 21
+    }
+   ]
+  }
+ },
+ "swatch_sauro_brachio_hardskin.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 22
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 22
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 22
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 22
+    }
+   ]
+  }
+ },
+ "swatch_sauro_brachio_largeskin.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 23
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 23
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 23
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 23
+    }
+   ]
+  }
+ },
+ "swatch_sauro_brachio_neckskin.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 24
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 24
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 24
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 24
+    }
+   ]
+  }
+ },
+ "swatch_sauro_brachio_smallskin.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 25
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 25
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 25
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 25
+    }
+   ]
+  }
+ },
+ "swatch_sauro_camar_scalesround.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 26
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 26
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 26
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 26
+    }
+   ]
+  }
+ },
+ "swatch_thero_croc_backscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 27
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 27
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 27
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 27
+    }
+   ]
+  }
+ },
+ "swatch_thero_croc_bumpscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 28
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 28
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 28
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 28
+    }
+   ]
+  }
+ },
+ "swatch_thero_croc_bumpscalesround.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 29
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 29
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 29
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 29
+    }
+   ]
+  }
+ },
+ "swatch_thero_deino_crown.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 30
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 30
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 30
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 30
+    }
+   ]
+  }
+ },
+ "swatch_thero_dilo_frills.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 31
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 31
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 31
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 31
+    }
+   ]
+  }
+ },
+ "swatch_thero_galli_scales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 32
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 32
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 32
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 32
+    }
+   ]
+  }
+ },
+ "swatch_thero_galli_smallscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 33
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 33
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 33
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 33
+    }
+   ]
+  }
+ },
+ "swatch_thero_galli_wrinklesgary.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 34
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 34
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 34
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 34
+    }
+   ]
+  }
+ },
+ "swatch_thero_indominusrex_scalesflatlong.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 35
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 35
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 35
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 35
+    }
+   ]
+  }
+ },
+ "swatch_thero_indominusrex_scalesround.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 36
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 36
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 36
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 36
+    }
+   ]
+  }
+ },
+ "swatch_thero_raptor_directionalscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 37
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 37
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 37
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 37
+    }
+   ]
+  }
+ },
+ "swatch_thero_raptor_dotdetail.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 38
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 38
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 38
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 38
+    }
+   ]
+  }
+ },
+ "swatch_thero_raptor_headdetailscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 39
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 39
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 39
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 39
+    }
+   ]
+  }
+ },
+ "swatch_thero_raptor_longroundscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 40
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 40
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 40
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 40
+    }
+   ]
+  }
+ },
+ "swatch_thero_raptor_scales_01.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 19
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 19
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 19
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 19
+    }
+   ]
+  }
+ },
+ "swatch_thero_raptor_scutes.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 41
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 41
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 41
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 41
+    }
+   ]
+  }
+ },
+ "swatch_thero_raptor_skin.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 42
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 42
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 42
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 42
+    }
+   ]
+  }
+ },
+ "swatch_thero_spino_detail01.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 43
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 43
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 43
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 43
+    }
+   ]
+  }
+ },
+ "swatch_thero_spino_erratic_square.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 44
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 44
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 44
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 44
+    }
+   ]
+  }
+ },
+ "swatch_thero_spino_longscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 45
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 45
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 45
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 45
+    }
+   ]
+  }
+ },
+ "swatch_thero_spino_roundvaried.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 46
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 46
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 46
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 46
+    }
+   ]
+  }
+ },
+ "swatch_thero_trex_backfolds.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 47
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 47
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 47
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 47
+    }
+   ]
+  }
+ },
+ "swatch_thero_trex_lumpyskin.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 48
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 48
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 48
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 48
+    }
+   ]
+  }
+ },
+ "swatch_thyreo_stego_largescale.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 49
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 49
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 49
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 49
+    }
+   ]
+  }
+ },
+ "swatch_thyreo_stego_plate.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    0.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 50
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 50
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 50
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 50
+    }
+   ]
+  }
+ },
+ "swatch_thyreo_stego_roughskin.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 51
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 51
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 51
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 51
+    }
+   ]
+  }
+ },
+ "swatch_thyreo_stego_roughskinwscales.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 52
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 52
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 52
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 52
+    }
+   ]
+  }
+ },
+ "swatch_thyreo_stego_square.fgm": {
+  "shader": "DinosaurLayered_Swatch_Opaque",
+  "attrs": {
+   "pAshColour": [
+    0.05000000074505806,
+    0.05000000074505806,
+    0.05000000074505806
+   ],
+   "pAshSmoothStepMax": [
+    0.0005000000237487257
+   ],
+   "pAshSmoothStepMin": [
+    1.0
+   ],
+   "pEnablePainterObjectSpace": [
+    0.0
+   ],
+   "pGlobalColouringWeight": [
+    1.0
+   ],
+   "pGlobalEffectModifier": [
+    1.0
+   ],
+   "pLayered_AshUpwards": [
+    0.20000000298023224
+   ],
+   "pLayered_AshWeight": [
+    0.0
+   ],
+   "pMaximumDustAmount": [
+    1.0
+   ],
+   "pMaximumPorosity": [
+    0.5
+   ],
+   "pMaximumSnowAmount": [
+    1.0
+   ],
+   "pPerturbationViewFlag": [
+    0.0
+   ],
+   "pSnowOnSlopesOffset": [
+    0.0
+   ],
+   "pSnowOpacity": [
+    1.0
+   ]
+  },
+  "textures": {
+   "pDiffuseTexture": [
+    {
+     "name": "",
+     "array_index": 53
+    }
+   ],
+   "pHeightTexture": [
+    {
+     "name": "",
+     "array_index": 53
+    }
+   ],
+   "pPackedTexture": [
+    {
+     "name": "",
+     "array_index": 53
+    }
+   ],
+   "pRemapTexture": [
+    {
+     "name": "",
+     "array_index": 53
+    }
+   ]
+  }
+ }
+}
