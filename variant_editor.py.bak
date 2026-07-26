@@ -35,13 +35,7 @@ for _p in (HERE, PARENT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-try:
-    import fgm_io                                   # noqa: E402
-    _FGM_IMPORT_ERROR = None
-except Exception as _import_err:
-    fgm_io = None
-    _FGM_IMPORT_ERROR = str(_import_err)
-
+import fgm_io                                   # noqa: E402
 import theme                                    # noqa: E402
 from editor_ui import VariantEditorWindow       # noqa: E402
 from preview_bridge import PreviewBridge        # noqa: E402
@@ -236,15 +230,6 @@ def main(argv=None):
     argv = list(sys.argv if argv is None else argv)
     app = QtWidgets.QApplication(argv)
     theme.apply(app)      # app-level too, so QFileDialog/QMessageBox match the window
-
-    if _FGM_IMPORT_ERROR:
-        QtWidgets.QMessageBox.critical(
-            None,
-            "JWE3 Variant Editor - Configuration Error",
-            f"Could not load required modules:\n\n{_FGM_IMPORT_ERROR}\n\n"
-            "Please run 'python setup_gui.py' to configure the path to your cobra-tools installation."
-        )
-        return 1
 
     bridge = PreviewBridge()
     connected = bridge.connect()

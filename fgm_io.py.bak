@@ -32,27 +32,15 @@ from pathlib import Path
 # Set up logging before importing cobra-tools
 logging.disable(logging.WARNING)
 
-# Add package directory to path so jwe3_config and variant_model resolve
-HERE = os.path.dirname(os.path.abspath(__file__))
-if HERE not in sys.path:
-    sys.path.insert(0, HERE)
+# Add cobra-tools to path
+sys.path.insert(0, r"d:\JWE2 Stuff\Cobra Tool Versions\Main Mod Kit\cobra-tools-master")
 
-import jwe3_config as cfg
+from modules.formats.FGM import FgmContext
+from generated.formats.fgm.structs.FgmHeader import FgmHeader
+
+# Add parent directory to path for variant_model import
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from variant_model import VariantModel
-
-# Resolve cobra-tools path via config / environment / auto-detection
-cobra_dir = cfg.get("cobra_tools")
-if cobra_dir and os.path.isdir(cobra_dir) and cobra_dir not in sys.path:
-    sys.path.insert(0, cobra_dir)
-
-try:
-    from modules.formats.FGM import FgmContext
-    from generated.formats.fgm.structs.FgmHeader import FgmHeader
-except ImportError as e:
-    raise RuntimeError(
-        "cobra-tools could not be found or imported.\n"
-        "Please run 'python setup_gui.py' to configure your cobra-tools path, or set the JWE3_COBRA_TOOLS environment variable."
-    ) from e
 
 
 # FGM attribute name mapping
@@ -300,10 +288,6 @@ def selftest():
     # Test load/save round-trip
     import shutil
     import tempfile
-
-    if not os.path.isfile(SAMPLE_FGM):
-        print("selftest ok (sample FGM not present on disk, skipped file I/O tests)")
-        return
 
     work = os.path.join(tempfile.gettempdir(), "fgmio_test.fgm")
 
