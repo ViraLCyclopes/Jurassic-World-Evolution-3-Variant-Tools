@@ -213,6 +213,42 @@ def _server_loop():
         _command_queue.put((conn, msg))
 
 
+def _norm_obj_name(name):
+    """Normalise an object name for matching: drop cobra-tools' `: <material>` suffix, fold case.
+
+    cobra-tools names imported objects `"<name>: <material>"`, and when the material part is empty
+    that leaves a TRAILING COLON AND SPACE -- the real object is `'lokiceratops_female_L0: '` while
+    the Outliner shows `lokiceratops_female_L0:`. So anyone reading the name off the screen types
+    something that never matches exactly, and the build fails for no visible reason.
+    """
+    return (name or "").split(":")[0].strip().lower()
+
+
+def _resolve_object(name):
+    """(object, candidates) -- find a mesh object from a name a human typed, tolerantly."""
+    import bpy
+    obj = bpy.data.objects.get(name or "")
+    if obj is not None:
+        return obj, []
+
+    want = _norm_obj_name(name)
+    meshes = [o for o in bpy.data.objects if o.type == "MESH"]
+    if not want:
+        return None, [o.name for o in meshes[:10]]
+
+    exact = [o for o in meshes if _norm_obj_name(o.name) == want]
+    if len(exact) == 1:
+        return exact[0], []
+    if exact:                                   # several LODs/duplicates: take the densest mesh
+        exact.sort(key=lambda o: len(o.data.polygons), reverse=True)
+        return exact[0], []
+
+    partial = [o for o in meshes if want in _norm_obj_name(o.name)]
+    if len(partial) == 1:
+        return partial[0], []
+    return None, [o.name for o in (partial or meshes)][:10]
+
+
 def _build_on_object(object_name, mask_dir, mask_prefix, layers_json):
     """Build the layer material and assign it to `object_name`. Returns the material, or None if
     that object does not exist. Shared by the socket `build` command and the menu importer."""
@@ -221,7 +257,7 @@ def _build_on_object(object_name, mask_dir, mask_prefix, layers_json):
     from blender_layer_nodes import build_from_json
 
     global _current_mat, _current_grade
-    obj = bpy.data.objects.get(object_name)
+    obj, _candidates = _resolve_object(object_name)
     if obj is None:
         return None
 
@@ -248,7 +284,15 @@ def _cmd_build(cmd):
     """Handle {"cmd": "build", ...} -- must run on Blender's main thread."""
     mat = _build_on_object(cmd["object"], cmd["mask_dir"], cmd["mask_prefix"], cmd["layers_json"])
     if mat is None:
-        return {"ok": False, "error": "import the JWE model (.ms2) first"}
+        # Say WHICH names exist. "build failed" alone is useless when the cause is a name that
+        # looks right on screen but differs by cobra-tools' trailing ": " suffix.
+        _obj, candidates = _resolve_object(cmd["object"])
+        if candidates:
+            return {"ok": False,
+                    "error": "no mesh object matching %r. Did you mean one of: %s"
+                             % (cmd["object"], ", ".join(repr(c) for c in candidates[:5]))}
+        return {"ok": False, "error": "no mesh objects in the scene -- import the JWE model "
+                                      "(.ms2) with cobra-tools first"}
     return {"ok": True}
 
 
@@ -324,7 +368,7 @@ def _model_texture_dir(object_name):
     sys.path.insert(0, _here())
     import preview_assets
 
-    obj = bpy.data.objects.get(object_name or "")
+    obj, _cands = _resolve_object(object_name)
     if obj is None or obj.type != "MESH":
         return None
     seen = set()
