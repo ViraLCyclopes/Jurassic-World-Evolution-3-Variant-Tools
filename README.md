@@ -253,6 +253,26 @@ Slider ranges are defaults taken from a survey of 40 shipped variant FGMs, not h
 whose value sits outside a range widens that slider instead of being clamped, so opening and saving
 a variant never alters a value you did not touch.
 
+## What to extract for a species
+
+Extract a species into **one folder** and import from there. The folder needs all of this:
+
+| file(s) | what it is |
+|---|---|
+| `models.ms2` | the mesh you import into Blender |
+| `<species>[_<sex>]_variant_NN_NN.fgm` | the variants — the colours you edit |
+| `<species>[_<sex>]_layer_NN.fgm` | the 16 per-layer materials |
+| **`*.dinosaurmateriallayers`** | **the layer definition — easy to miss, and nothing works without it** |
+| `*.playered_blendweights_[NN]_*.png` | the layer masks |
+| `*.pbase*texture*.png` | base diffuse / normal / AO |
+
+> ⚠️ **`.dinosaurmateriallayers` must be in the folder alongside the `.fgm` files.** It is what says
+> which swatch and settings each of the 16 layers uses. Without it the layer definition cannot be
+> built and the import fails — the error surfaces as a `StopIteration`, or
+> `could not build a LayerJSON for <Species>`, which does not obviously point at a missing file.
+
+Everything else resolves automatically once those are together in one folder.
+
 ## Preview assets — where the textures come from
 
 Same rule cobra-tools itself uses (`create_material(reporter, in_dir, matname)` reads the `.fgm` and

@@ -93,22 +93,39 @@ def preview_paths(species, sex=None):
     return md, os.path.basename(md).lower(), lj
 
 
-def generate_layers_json(species, sex="Female"):
-    """Build the missing `LayerJSON/<Species>_<Sex>.json` by running the existing exporter.
+def generate_layers_json(species, sex="Female", folder=None):
+    """Build the missing `LayerJSON/<Species>_<Sex>.json`. Returns the path, or raises AssetError.
 
-    Reads the species' layer chain out of the game data, so a species you have merely extracted
-    becomes previewable without a separate manual step. Returns the path, or raises AssetError.
+    `folder` -- the folder you extracted the species into -- is the preferred source: it needs no
+    game install, and it works for modded and custom species. It must contain the
+    `.dinosaurmateriallayers` file alongside the per-layer `.fgm` files.
+
+    Falling back to reading the game's own OVL is unreliable: the layout varies between species
+    (Carnotaurus' species OVL carries no layer definition at all), which is why the folder is tried
+    first whenever one is known.
     """
     import sys
     if PARENT not in sys.path:
         sys.path.insert(0, PARENT)
+    import export_layers
+
+    errors = []
+    if folder and os.path.isdir(folder):
+        try:
+            path, _layers = export_layers.export_from_folder(folder, species, sex or "Female")
+            return path
+        except Exception as e:
+            errors.append("from %s: %s: %s" % (folder, type(e).__name__, e))
     try:
-        import export_layers
         path, _layers = export_layers.export(species, sex or "Female")
         return path
     except Exception as e:
-        raise AssetError("could not build a LayerJSON for %s: %s: %s\nRun it by hand with:\n"
-                         "  python export_layers.py %s" % (species, type(e).__name__, e, species))
+        errors.append("from the game install: %s: %s" % (type(e).__name__, e))
+
+    raise AssetError(
+        "could not build a LayerJSON for %s.\n  %s\n\nThe reliable fix: extract the species so that "
+        "its *.dinosaurmateriallayers file sits in the SAME FOLDER as its .fgm files, and import "
+        "the variant .fgm from there." % (species, "\n  ".join(errors)))
 
 
 def assets_for(model_species, model_sex=None, fgm_path=None, fgm_species=None, allow_generate=True,
@@ -156,7 +173,10 @@ def assets_for(model_species, model_sex=None, fgm_path=None, fgm_species=None, a
 
     layers_json = layers_json_for(model_species, model_sex)
     if layers_json is None and allow_generate:
-        layers_json = generate_layers_json(model_species, model_sex)
+        # Prefer the folder the assets actually came from -- the model's own folder if we know it,
+        # otherwise the .fgm's. Both normally hold the .dinosaurmateriallayers file.
+        src = model_dir or (os.path.dirname(os.path.abspath(fgm_path)) if fgm_path else None)
+        layers_json = generate_layers_json(model_species, model_sex, folder=src)
     if layers_json is None:
         raise AssetError("no LayerJSON for %s -- run:  python export_layers.py %s"
                          % (model_species, model_species))

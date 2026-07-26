@@ -29,6 +29,118 @@ import _paths  # noqa: E402  (vendored: data lives inside the package)
 SWATCH_PARAMS = _paths.swatch_params()
 SWATCH_DIR = _paths.swatch_dir()
 
+LAYERS_EXT = ".dinosaurmateriallayers"
+
+
+class LayersNotFound(Exception):
+    """No layer definition could be found. The message says where we looked."""
+
+
+def find_layers_file(folder, sex=None):
+    """The `.dinosaurmateriallayers` in a folder, or None.
+
+    Matched on EXTENSION ONLY -- the stem varies (`carnotaurus_layers...`,
+    `cearadactylus_female_layers...`), so constructing the name from the species is unreliable.
+    When a folder holds more than one, a `sex` hint picks the matching file.
+    """
+    import glob as _glob
+    hits = sorted(_glob.glob(os.path.join(folder, "*" + LAYERS_EXT)))
+    if not hits:
+        return None
+    if sex:
+        for h in hits:
+            if sex.lower() in os.path.basename(h).lower():
+                return h
+    return hits[0]
+
+
+def _fgm_index(folder):
+    """{lowercase filename: path} for every .fgm in the folder, for case-insensitive lookup."""
+    out = {}
+    for name in os.listdir(folder):
+        if name.lower().endswith(".fgm"):
+            out[name.lower()] = os.path.join(folder, name)
+    return out
+
+
+def _params_from_fgm_file(path):
+    """{attribute name: [values]} from a loose extracted .fgm -- the folder equivalent of
+    `reader_kit._params`, which needs an OVL loader."""
+    from modules.formats.FGM import FgmContext
+    from generated.formats.fgm.structs.FgmHeader import FgmHeader
+    h = FgmHeader.from_xml_file(path, FgmContext(loader=None))
+    names = [a.name for a in h.attributes.data]
+    vals = h.value_foreach_attributes.data
+    return {names[i]: [float(x) for x in vals[i].value] for i in range(len(names))}
+
+
+def resolve_from_folder(folder, sex=None):
+    """The layer chain, built from a folder YOU extracted. No game install, no Dinosaurs.zip.
+
+    This is the path the tools use. Reading the game's own OVL turned out to be unworkable: OVL
+    layout varies between species (Carnotaurus' species OVL carries no .dinosaurmateriallayers at
+    all), and depending on the installed game to preview a variant is wrong anyway -- it breaks for
+    modded and custom species, which are the whole point.
+
+    The folder needs the `.dinosaurmateriallayers` file alongside the per-layer `.fgm` files.
+    """
+    from generated.formats.dinosaurmaterialvariants.structs.DinoLayersHeader import DinoLayersHeader
+    from modules.formats.FGM import FgmContext
+
+    path = find_layers_file(folder, sex)
+    if path is None:
+        raise LayersNotFound(
+            "no *%s file in %s\nExtract the species so that file sits alongside its .fgm files "
+            "-- it is the layer definition and nothing can be built without it." % (LAYERS_EXT, folder))
+
+    header = DinoLayersHeader.from_xml_file(path, FgmContext(loader=None))
+    fgms = _fgm_index(folder)
+    slices = swatch_slices()
+    swatch_w = swatch_colour_weights()
+
+    out = []
+    cursor = 0                      # POST-increment, exactly as in resolve() below
+    for i, lay in enumerate(header.layers.data):
+        swatch = str(lay.texture_fgm_name.data)
+        inc = int(lay.increment_channel)
+        tptr = getattr(lay, "transform_fgm_name", None)
+        tname = str(tptr.data) if tptr is not None and tptr.data else None
+
+        params = {}
+        if tname:
+            fgm_path = fgms.get((tname + ".fgm").lower())
+            if fgm_path:
+                params = _params_from_fgm_file(fgm_path)
+
+        out.append({
+            "index": i,
+            "layer_no": i + 1,
+            "swatch": swatch,
+            "transform_fgm": tname,
+            "used": swatch not in ("None", "", "0"),
+            "increment_channel": inc,
+            "slices": slices.get((swatch + ".fgm").lower(), {}),
+            "swatch_colour_weight": swatch_w.get((swatch + ".fgm").lower(), 1.0),
+            "blend_texture": cursor // 4 if 0 <= cursor < 16 else None,
+            "blend_channel": "RGBA"[cursor % 4] if 0 <= cursor < 16 else None,
+            "params": params,
+        })
+        cursor += inc
+
+    # Per-layer transform FGMs carry UV tiling, contrast and colouring weight. Missing them is not
+    # fatal -- the chain still resolves -- but the preview silently loses those settings, so say so
+    # rather than letting it look like a rendering bug.
+    want = [l for l in out if l["used"] and l["transform_fgm"]]
+    got = [l for l in want if l["params"]]
+    if want and not got:
+        print("  WARNING: none of the %d layer .fgm files are in %s -- extract them alongside %s, "
+              "or the preview loses per-layer tiling and contrast."
+              % (len(want), folder, os.path.basename(path)))
+    elif len(got) < len(want):
+        print("  WARNING: %d of %d layer .fgm files missing from %s"
+              % (len(want) - len(got), len(want), folder))
+    return out
+
 # The four shared array textures every swatch indexes into.
 SLOTS = ("pDiffuseTexture", "pHeightTexture", "pPackedTexture", "pRemapTexture")
 
@@ -86,7 +198,13 @@ def resolve(species, sex="Female"):
     """
     # not f"{species}_{sex}.ovl": a sexless species (Indominus Rex) is just "<Species>.ovl"
     ovl = rk._ovl(os.path.join(rk.pristine(species, sex), rk.species_ovl_name(species, sex)))
-    ml = next(l for n, l in ovl.loaders.items() if n.endswith(".dinosaurmateriallayers"))
+    try:
+        ml = next(l for n, l in ovl.loaders.items() if n.endswith(".dinosaurmateriallayers"))
+    except StopIteration:
+        raise LayersNotFound(
+            "%s contains no .dinosaurmateriallayers -- OVL layout varies between species.\n"
+            "Use resolve_from_folder() against your own extracted folder instead; it needs no "
+            "game install." % rk.species_ovl_name(species, sex))
     slices = swatch_slices()
     swatch_w = swatch_colour_weights()
 

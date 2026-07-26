@@ -19,6 +19,20 @@ import _paths  # noqa: E402  (vendored: generated output stays inside the packag
 OUT = _paths.layerjson_dir()
 
 
+def export_from_folder(folder, species, sex="Female", out_dir=OUT):
+    """Write `<Species>_<Sex>.json` from a folder YOU extracted -- no game install needed.
+
+    Preferred over `export()`: it works for modded and custom species, and does not depend on the
+    game's OVL layout (which varies -- some species' OVLs carry no layer definition at all).
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    layers = layer_chain.resolve_from_folder(folder, sex)
+    path = os.path.join(out_dir, f"{species}_{sex}.json")
+    with open(path, "w") as fh:
+        json.dump({"species": species, "sex": sex, "source": folder, "layers": layers}, fh, indent=1)
+    return path, layers
+
+
 def export(species, sex="Female", out_dir=OUT):
     os.makedirs(out_dir, exist_ok=True)
     layers = layer_chain.resolve(species, sex)
