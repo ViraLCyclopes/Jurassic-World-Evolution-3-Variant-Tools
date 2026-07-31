@@ -25,19 +25,29 @@ this the higher-value of the two axes for a modder.
 - Read pattern FGMs, pattern sets and the slot manifest.
 - Bake the 32-entry LUT from keys.
 - Discover a species' **mesh parts** and the body↔feather/quills pairing.
-- Build and splice a `JWE3_Pattern` node group onto the layered body part.
+- Build and splice a `JWE3_Pattern` node group onto the layered body part **and the feathers part**.
+- **Render the feathers part** — `DinosaurFeathers_Clip{Single,Double}Sided`, including resolving the
+  shared `DinosaurFur/` library by dependency name.
 - Editable model + FGM save, ready for the editor UI in the follow-up spec.
 
 **Out — deliberately:**
 
-- **Rendering the feathers, fin and shell parts.** Their seams are built now; their node builds are a
-  later spec. Reason: `DinosaurFeathers` is a second shader read, and blocking on it would delay
-  everything visible.
+- **Fin and shell rendering.** These are a shell-and-fin extrusion technique — `gShellClumping`,
+  `gShellUVStretchPower`, `gHeightStretchScale`, `pFinBrushScale` — which Blender does not do the way
+  the game does. That is a geometry problem, not a texture problem, and materially larger than
+  feathers. Their seams are built; the build is a later spec.
+- **Iridescence.** `pIridescenceTexture` and `pIridescenceMaskTexture` are inline RGBA placeholders on
+  Pyroraptor, so nothing in the validation set exercises them. Slots are read and reported; the
+  shading is not implemented.
 - **The editor UI itself** (sliders, colour pickers, Blender N-panel). Follow-up spec. This one ends
-  at a working `pattern_model` + `pattern_io` + a rendering node group.
-- **Colour-accuracy validation.** The chosen validation species have no harvested seed coefficients
-  (§Validation), so their base colour is approximate. Structure is validated; colour is not.
+  at a working `pattern_model` + `pattern_io` + rendering node groups.
 - Writing patterns back into an OVL. Loose extracted files only, as with the variant editor.
+
+**Feathers were moved in scope after the original draft.** The out-of-scope call assumed a second
+large shader read. Verified since: all five shared feather textures resolve by `<dependency_name>`
+in `DinosaurFur/` and load correctly in Blender, and iridescence and emissive are placeholders on
+Pyroraptor. What remains is an ordinary PBR set plus alpha clip. The anisotropic shading and wind
+jitter in that shader affect motion and highlights, not a static colour preview.
 
 ## Design
 
@@ -69,9 +79,10 @@ Blender side never imports cobra-tools — it consumes JSON.
 |---|---|---|
 | `pattern_reader.py` | read a pattern FGM's 67 attributes, the pattern set's 4 index maps, and the `.dinosaurmaterialpatterns` slot list | no |
 | `pattern_lut.py` | **the bake** — sparse keys → 32-entry LUT for colour, emissive, opacity | no |
-| `part_manifest.py` | **new.** discover mesh parts by texture set, de-interleave the manifest, pair body↔feather/quills, and *locate* the shared `DinosaurFur/` library and per-species overrides | **yes — the only one** |
+| `part_manifest.py` | **new.** discover mesh parts by texture set, de-interleave the manifest, pair body↔feather/quills, and resolve the shared `DinosaurFur/` library and per-species overrides by `<dependency_name>` | **yes — the only one** |
 | `export_pattern.py` | JSON bridge, keyed by part; mirrors `export_palette.py` | passthrough |
 | `blender_pattern_nodes.py` | build + splice the `JWE3_Pattern` group onto a part | yes |
+| `blender_feather_nodes.py` | **new.** build the feathers material — PBR set + alpha clip; mirrors `blender_layer_nodes.py` | feathers only |
 | `pattern_model.py` | plain-data editable model; mirrors `variant_model.py` | no |
 | `pattern_io.py` | loose `.fgm` load/save via cobra-tools `FgmHeader`; mirrors `fgm_io.py` | no |
 
@@ -144,11 +155,42 @@ unsplice before splicing, and its selftest must assert that applying twice leave
 `apply_pattern(part, ...)` takes a part from the start, so no material-per-object assumption is baked
 in anywhere.
 
-### Two traps carried over from the existing work
+### The feathers material
+
+Resolution is a **`<dependency_name>` lookup**: each texture slot in the feathers FGM names its file
+outright, so `part_manifest` matches that name against the local folder first and the shared
+`DinosaurFur/` library second. No name-derived guessing — that is the rule `preview_assets.py`
+already follows for masks, and for the same reason.
+
+**Colour spaces must be forced, not trusted.** cobra-tools assigns split-channel PNGs *inconsistently*
+— sibling channels of the same packed texture came in as sRGB and Non-Color respectively, with
+`aoheightopacitytransmission_R/_G`, `aniso_R/_G` and `roughnesspacked_A` all wrongly sRGB. Every
+non-albedo channel must be set to Non-Color **and re-asserted on reuse**, since image datablocks are
+shared and the reuse path is exactly where this hid last time.
+
+**Start from cobra-tools' own material, don't replace it.** The importer already builds a complete
+tree: a shared `MainShader` PBR group with 10 of its 11 inputs connected for feathers, and an
+unpacking of the packed textures that agrees with those textures' own names — `RoughnessPacked` R/G/B
+→ Metalness/Roughness/Specular, `AOHeightOpacityTransmission` R/B/A → AO/Opacity/Transmission. That
+mapping is corroborated evidence, not a guess, and the build should adopt it.
+
+> **`MainShader` is ONE node group shared by all four part materials** — feathers, fur, fur_fin,
+> fur_shell. Mutating it in place changes all four. Copy to a single user or build a fresh group;
+> never edit the shared one. Same shape as the shared-image-datablock bug that once turned Loki
+> brown.
+
+The shared textures are 512×512 against the local base diffuse's 1024×1024, so they tile — same
+resolution-independence as the swatch system, and the same reason a fixed-resolution bake throws away
+the point.
+
+### Three traps carried over from the existing work
 
 - **V is flipped for every LUT lookup.** Extracted PNGs keep DirectX row order; Blender's V runs from
   the bottom. Row `i` of a 3-row LUT is `1 - (i + 0.5)/3`.
 - **Cycles, not EEVEE.** EEVEE Next renders the 16-layer material as flat magenta and fails silently.
+- **Two-channel normals need Z rebuilt** as `sqrt(1 - x² - y²)`. `feathers.pfeathers_normaltexture_RG`
+  is the same shape as the body's `pBaseNormalTexture_RG`; feeding it straight to a Normal Map node
+  treats blue as z and flattens the surface.
 
 ### Colour space
 
@@ -191,13 +233,25 @@ Per `jwe3-blender-reproduction`: judge colour on flat albedo (`preview_albedo`) 
 Standard, re-render a known-good frame first to rule out leaked state, and never set
 `colorspace_settings` on a shared image datablock.
 
-**Known validation gap:** none of Loki, Pyroraptor or Psittacosaurus has harvested seed coefficients,
-so their base colour is approximate and this set validates **structure only**. Baryonyx — 7 patterns
-+ blank, 4 harvested seeds, an already user-validated render — is the species that could validate
-colour, and can be added later without design change.
+Add a feathers case: build `pyroraptor_feathers` and assert all five shared textures resolved from
+`DinosaurFur/` by dependency name, that every non-albedo channel is Non-Color, and that the build did
+**not** mutate the shared `MainShader` group (check its user count is unchanged).
 
-**Blocking dependency:** every existing reference screenshot uses Blank Pattern. New in-game captures
-of a non-blank pattern are required before the visual step can run. Nothing before it is blocked.
+**Seed harvesting runs as a parallel track, not a dependency.** None of Loki, Pyroraptor or
+Psittacosaurus currently has harvested coefficients, so their base colour is approximate and the gate
+for this spec is **structural validation only**. Colour validation is added opportunistically as
+seeds land — `coeff_store.py` re-reads on mtime change, so new rows appear without a restart and
+without any design change here. Baryonyx (7 patterns + blank, 4 harvested seeds, a validated render)
+remains the fallback if no new seeds arrive.
+
+Capture guidance for that track, from `PALETTE.md`: **yield = distinct (species, variant) pairs on
+screen**, so one frame with many differently-skinned animals beats many frames with one. A capture
+whose frame did not draw the animal yields zero blocks for *every* species — that is the tell that
+the frame is wrong rather than the species. Back up `gradient_coefficients.json` before harvesting.
+
+**Blocking dependency, at the last step only:** every existing reference screenshot uses Blank
+Pattern. New in-game captures of a non-blank pattern are required before the visual comparison can
+run. Nothing before it is blocked.
 
 ## Risks
 
@@ -207,11 +261,14 @@ of a non-blank pattern are required before the visual step can run. Nothing befo
 | Patchwork path is unexercised — `u_usePatchwork` is 0 in all 28 shipped files | Implement the pattern path only; leave patchwork unimplemented and say so, rather than guessing |
 | `u_patchworkFlags` is 31 in every file, so it carries no information | Do not infer it from data. Same trap as `u_globalKeyType` in `PALETTE.md` — settle from IR or capture |
 | `Variant Research/Textures/` is a partial dump and misled this research twice | Source species files from the `Personal Mods` tree; `part_manifest` reports what it could not resolve rather than silently proceeding |
+| Mutating the shared `MainShader` group corrupts all four part materials at once | Copy to single user or build fresh; selftest asserts the shared group's user count is unchanged |
+| bpy `is` comparison on nodes silently matches nothing, and reads as "no links" | Compare by `.name` throughout. This produced two wrong findings during design |
 
 ## Follow-up specs
 
 1. **Pattern editor UI** — 12 colour + 12 emissive keys with native colour pickers, 8 opacity keys,
    the flags, a pattern picker and a live LUT strip; in both the Blender N-panel and the PyQt5 app,
    sharing `pattern_model`.
-2. **Feathers/fur rendering** — `DinosaurFeathers_ClipDoubleSided` (container 202, 2411 IR lines, the
-   smallest of the part shaders), plus fin/shell, plus resolving the shared `DinosaurFur/` library.
+2. **Fin and shell rendering** — `DinosaurFur_Vanilla_{Fin,Shell}`, the shell-and-fin extrusion
+   technique. Geometry-side work, and the reason they were held back from this spec.
+3. **Iridescence** — once a species is found that actually uses it. Pyroraptor does not.
