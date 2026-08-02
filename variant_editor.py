@@ -11,13 +11,17 @@ File action is a thin dialog wrapper around a `do_*` method that takes explicit 
 
 PREVIEW ASSET CONVENTIONS (discovered from the existing research folder, not invented here):
 
-    mask_dir     ../Textures/<Species>/                e.g. .../Textures/Baryonyx
+    mask_dir     the folder the MODEL (or the .fgm) was imported from -- textures follow the model,
+                 not the .fgm, so previewing a Spinosaurus variant on a Baryonyx uses Baryonyx's
+                 masks. `Textures/<Species>/` is only a LAST-RESORT fallback and ships EMPTY.
     mask_prefix  <species lowercased>                  e.g. "baryonyx", giving
                                                        baryonyx.playered_blendweights_[00]_A.png
     layers_json  ../LayerJSON/<Species>_<Sex>.json     produced by `python export_layers.py <Species>`
 
-Only species that have BOTH a LayerJSON and a Textures folder can be previewed; the dropdown lists
-exactly those. Everything else in the tool (editing, saving) works for any species.
+A LayerJSON alone makes a species previewable; the dropdown lists those. The curated
+`Textures/<Species>` folder is OPTIONAL -- see `preview_assets.resolve`. (This block used to say a
+Textures folder was REQUIRED, which stopped being true when masks moved to following the model.)
+Everything else in the tool (editing, saving) works for any species.
 
 NOT connected to the game: this tool only reads and writes loose extracted .fgm files. Injecting
 the saved .fgm back into an OVL stays the user's own cobra-tools step.
@@ -73,6 +77,12 @@ class EditorController:
         window.act_save_as.triggered.connect(self.on_save_as)
         window.build_button.clicked.connect(self.on_build)
         window.blenderImport.connect(self.on_blender_import)
+        window.from_selected_button.clicked.connect(self.on_from_selected)
+        window.texture_open_button.clicked.connect(self.on_open_texture)
+        window.texture_save_button.clicked.connect(self.on_save_texture)
+        window.textures_button.clicked.connect(self.on_pick_textures)
+        window.textures_clear.clicked.connect(self.on_clear_textures)
+        self.refresh_textures_row()
 
         window.species_combo.addItems(previewable_species())
 
@@ -173,6 +183,103 @@ class EditorController:
         if not self.window.current_path:
             return None
         return fgm_io.species_sex_from_filename(self.window.current_path)[1]
+
+    # -- the diffuse preview -------------------------------------------------
+    def on_open_texture(self):
+        self._guard(self.do_open_texture)
+
+    def do_open_texture(self, path=None):
+        """Pick a base diffuse PNG and preview the grade on it.
+
+        Starts in the configured texture folder, since that is where these live once it is set.
+        """
+        if path is None:
+            import jwe3_config
+            start = jwe3_config.textures_dir() or self._start_dir() or ""
+            path, _ = QtWidgets.QFileDialog.getOpenFileName(
+                self.window, "Base diffuse texture", start,
+                "Diffuse textures (*basediffusetexture*.png);;PNG images (*.png);;All files (*)")
+            if not path:
+                return None
+        self.window.load_texture(path)
+        self.window.statusBar().showMessage("diffuse: %s" % os.path.basename(path))
+        return path
+
+    def on_save_texture(self):
+        self._guard(self.do_save_texture)
+
+    def do_save_texture(self, out_path=None):
+        """Write the graded diffuse out as a PNG, at the source's full resolution."""
+        src = getattr(self.window, "texture_path", None)
+        if not src:
+            QtWidgets.QMessageBox.information(
+                self.window, "Variant Editor",
+                'No diffuse loaded. Use "Diffuse..." to pick one first.')
+            return None
+        if out_path is None:
+            stem = os.path.splitext(os.path.basename(src))[0]
+            suggested = os.path.join(os.path.dirname(src), "%s.graded.png" % stem)
+            out_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+                self.window, "Save graded texture", suggested, "PNG images (*.png)")
+            if not out_path:
+                return None
+        w, h = self.window.save_graded_texture(out_path)
+        self.window.statusBar().showMessage(
+            "saved %dx%d -> %s" % (w, h, os.path.basename(out_path)))
+        return out_path
+
+    # -- start from what is already in Blender ------------------------------
+    def on_from_selected(self):
+        self._guard(self.do_from_selected)
+
+    def do_from_selected(self):
+        """Adopt the mesh selected in Blender, and open the variant .fgm it was graded from.
+
+        Two useful outcomes, and the weaker one is still worth having:
+          * the material records `jwe3_variant_path` -> open that .fgm, so the editor is populated
+            without the user finding the file on disk;
+          * it does not (built by hand, or never graded) -> still adopt the object name, so a
+            later Build targets the right mesh. Say so rather than failing.
+        """
+        info = self.bridge.selected()
+        if not info:
+            QtWidgets.QMessageBox.information(
+                self.window, "Variant Editor",
+                "Nothing selected in Blender. Click the model in the viewport and try again.")
+            return None
+        obj = info.get("object") or ""
+        if obj:
+            self.window.object_name_edit.setText(obj)
+        path = info.get("variant_path")
+        if not path or not os.path.isfile(path):
+            self.window.statusBar().showMessage(
+                "adopted %s -- no variant .fgm recorded on its material%s"
+                % (obj, "" if not path else " (%s is gone)" % os.path.basename(path)))
+            return None
+        model = self.do_open(path)
+        self.window.statusBar().showMessage(
+            "from selected: %s on %s" % (os.path.basename(path), obj))
+        return model
+
+    # -- the texture folder ------------------------------------------------
+    # ONE folder, repointed as you move between species -- see jwe3_config.textures_dir.
+    def refresh_textures_row(self):
+        self.window.textures_edit.setText(__import__("jwe3_config").textures_dir() or "")
+
+    def on_pick_textures(self):
+        import jwe3_config
+        start = jwe3_config.textures_dir() or self._start_dir()
+        d = QtWidgets.QFileDialog.getExistingDirectory(
+            self.window, "Texture folder (masks for the species being previewed)", start or "")
+        if not d:
+            return
+        jwe3_config.set_textures_dir(d)
+        self.refresh_textures_row()
+
+    def on_clear_textures(self):
+        import jwe3_config
+        jwe3_config.set_textures_dir(None)
+        self.refresh_textures_row()
 
     def select_species(self, species):
         if not species:

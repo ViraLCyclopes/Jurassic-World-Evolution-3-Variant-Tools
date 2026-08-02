@@ -8,7 +8,7 @@ Blender and no socket.
 This module owns NO file I/O and NO socket calls -- `variant_editor.py` (Task 7) connects the File
 actions to `fgm_io` and the Build button to `PreviewBridge.build_material`. The window only exposes
 them (`act_open`, `act_new`, `act_save`, `act_save_as`, `build_button`, `species_combo`,
-`object_name_edit`).
+`object_name_edit`, `from_selected_button`, `textures_edit`, `textures_button`, `textures_clear`).
 
 TWO DATA-FIDELITY RULES, both there to stop the editor silently altering a variant you only opened:
 
@@ -55,6 +55,84 @@ SPEC = [
     ("paletteOffset",      "Palette offset",   -2.0,   10.0),
     ("paletteStrength",    "Palette strength",  0.0,    1.0),
 ]
+
+
+# What each control actually does, in terms of the shader. Read off the disassembly of
+# `0238_ps_DinosaurFur_Vanilla_BaseLayered_GBuffer`, not inferred from the names -- several names
+# are actively misleading (see `keyTolerance`). docs/SLIDERS.md has the long version.
+#
+# The whole model, for orientation:
+#
+#     mask     = saturate(1 - saturate(distance(rawDiffuse, keyColour) / keyThreshold))
+#     keyBlend = saturate(1 - mask / keyTolerance)      # or without the "1 -" if keyType is clear
+#     graded   = lerp(BASE grade, PALETTE grade, keyBlend)
+#     out      = lerp(ungraded albedo, graded, colourWeight)
+#
+# so every texel is graded TWICE, by two independent sets of brightness/saturation/hue, and
+# `keyBlend` decides which one it ends up on.
+TOOLTIPS = {
+    "seed": (
+        "Chooses the palette. NOT a colour: it is an index into a table baked inside the game "
+        "executable, which maps (seed, complexity) to twelve cosine-gradient coefficients.\n\n"
+        "Only seeds that have been HARVESTED from a capture have known coefficients. An "
+        "unharvested seed grades FLAT -- which looks identical to 'not graded at all', so check "
+        "the gradient badge before concluding a setting does nothing."),
+    "complexity": (
+        "The other half of the palette lookup: coefficients come from (seed, complexity), not "
+        "from the seed alone. The same seed at a different complexity is a different palette.\n\n"
+        "Higher values generally mean a busier gradient with more cycles across the body."),
+    "keyThreshold": (
+        "Divides the distance between each texel's RAW base diffuse and the key colour.\n\n"
+        "Bigger = more of the animal counts as 'near' the key colour. Together with key tolerance "
+        "this decides which texels take the base grade and which take the palette grade."),
+    "keyTolerance": (
+        "MISLEADINGLY NAMED. It divides the resulting MASK, not the colour distance -- the shader "
+        "uploads it as 1/tolerance and multiplies.\n\n"
+        "SMALL values make a HARD split: at 0.10 a texel must sit more than 90% of the way to the "
+        "threshold before it starts blending. Large values give a soft gradient between the two "
+        "grades."),
+    "brightnessBase": (
+        "Straight multiplier on the albedo for the BASE grade -- the side that pale texels take "
+        "when keyType is set.\n\n"
+        "Applied before saturation and the hue matrix. Values above ~2 will clip bright texels to "
+        "white once the result leaves [0,1]."),
+    "brightnessPalette": (
+        "Straight multiplier on the albedo for the PALETTE grade -- the side that also receives "
+        "the cosine gradient.\n\n"
+        "On many variants this is well below 1 (0.5-0.8), because the gradient supplies the "
+        "colour and the multiplier only sets the level."),
+    "saturationBase": (
+        "Pulls the BASE grade toward or away from its own brightness.\n\n"
+        "1.0 leaves it unchanged, 0.0 is fully greyscale, above 1.0 oversaturates. The grey it "
+        "moves toward is an RMS luma, sqrt(dot(c, c * Rec709)) -- not the usual linear dot."),
+    "saturationPalette": (
+        "The same, for the PALETTE grade. Independent of the base value: a variant can be "
+        "near-greyscale on one side and vivid on the other, and several shipped ones are."),
+    "hueRotationBase": (
+        "Rotates the hue of the BASE grade. Expanded into a circulant 3x3 matrix and uploaded as "
+        "ten-bit integers over 511.\n\n"
+        "Shipped variants keep this tiny -- Pyroraptor's are -0.007 and 0.072, i.e. near-identity. "
+        "It is a nudge, not a way to recolour an animal."),
+    "hueRotationPalette": "The same, for the PALETTE grade.",
+    "paletteScale": (
+        "Multiplies the composited HEIGHT before it is fed into the gradient, so it sets how many "
+        "cycles of the palette run across the body.\n\n"
+        "Larger = tighter banding. Past roughly one cycle the gradient converges toward its own "
+        "mean, which is a flat grey -- so more is NOT more colourful."),
+    "paletteOffset": (
+        "Added to the scaled height, sliding the whole gradient along the body. Changes which part "
+        "of the palette lands on the back versus the belly, without changing the palette itself."),
+    "paletteStrength": (
+        "How strongly the cosine gradient contributes on the PALETTE side.\n\n"
+        "It is gated: the effective strength is colourWeight x paletteStrength x keyBlend, so on "
+        "texels that take the base grade (keyBlend near 0) the gradient contributes NOTHING no "
+        "matter what this is set to."),
+    "keyColour": (
+        "The reference colour the key mask measures distance FROM, compared against each texel's "
+        "RAW base diffuse -- not the composited albedo.\n\n"
+        "White on every Pyroraptor variant, which makes the mask effectively 'how dark is this "
+        "texel'."),
+}
 
 
 class _Row(QtWidgets.QWidget):
@@ -152,6 +230,230 @@ class _Row(QtWidgets.QWidget):
         self.slider.setValue(self._to_slider(v))
         self._guard = False
         self.valueChanged.emit(self.field, self.value())
+
+
+class _TextureView(QtWidgets.QWidget):
+    """The diffuse before and after grading, side by side.
+
+    Holds the LINEAR source array (`source`) as the thing the grade is computed from, and two
+    QImages purely for painting. Keeping the linear array means re-grading never re-decodes the
+    PNG, which is what makes dragging the height slider interactive.
+    """
+
+    #: emitted on DOUBLE-click of a loaded preview -- the window opens a bigger detached copy.
+    #: Double rather than single so it does not fight the hover probe below.
+    clicked = QtCore.pyqtSignal()
+    #: emitted with (col, row) into the source array as the pointer moves over an image, or
+    #: (-1, -1) when it leaves one. Lets the window report what the grade does to that texel.
+    probed = QtCore.pyqtSignal(int, int)
+
+    def __init__(self, parent=None, expandable=True):
+        super().__init__(parent)
+        self.source = None          # linear float (H, W, 3), or None
+        self._before = None
+        self._after = None
+        self._expandable = expandable
+        self._image_rects = [None, None]     # where the two images were last painted
+        # Zoom/pan only on the DETACHED copy. The inline strip is 190 px tall and shares a scroll
+        # area, where a wheel event belongs to the scroll, not to us.
+        self._zoomable = not expandable
+        self._zoom = 1.0
+        self._pan = QtCore.QPoint(0, 0)
+        self._drag_from = None
+        self.setMouseTracking(True)          # probe on hover, with no button held
+        self.setMinimumHeight(190)
+        if expandable:
+            self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+            self.setCursor(QtCore.Qt.PointingHandCursor)
+        else:
+            # the detached copy fills its window instead of sitting at a fixed height
+            self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+
+    def mouseDoubleClickEvent(self, event):
+        if self._expandable and self._before is not None:
+            self.clicked.emit()
+        super().mouseDoubleClickEvent(event)
+
+    def wheelEvent(self, event):
+        """Zoom about the pointer, so the texel under the cursor stays under it."""
+        if not self._zoomable or self._before is None:
+            super().wheelEvent(event)
+            return
+        steps = event.angleDelta().y() / 120.0
+        if not steps:
+            return
+        old = self._zoom
+        self._zoom = max(1.0, min(24.0, old * (1.15 ** steps)))
+        if self._zoom != old:
+            # Keep the point under the cursor fixed: pan must scale about that point, not about
+            # the widget origin, or zooming walks the image away from what you were looking at.
+            c = event.pos()
+            k = self._zoom / old
+            self._pan = QtCore.QPoint(int(c.x() - k * (c.x() - self._pan.x())),
+                                      int(c.y() - k * (c.y() - self._pan.y())))
+            if self._zoom == 1.0:
+                self._pan = QtCore.QPoint(0, 0)     # snap back to a clean fit
+            self.update()
+        event.accept()
+
+    def mousePressEvent(self, event):
+        if self._zoomable and event.button() == QtCore.Qt.LeftButton and self._zoom > 1.0:
+            self._drag_from = event.pos()
+            self.setCursor(QtCore.Qt.ClosedHandCursor)
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._drag_from = None
+        if self._zoomable:
+            self.unsetCursor()
+        super().mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_from is not None:
+            self._pan += event.pos() - self._drag_from
+            self._drag_from = event.pos()
+            self.update()
+        else:
+            self.probed.emit(*self._pixel_at(event.pos()))
+        super().mouseMoveEvent(event)
+
+    def reset_view(self):
+        self._zoom, self._pan = 1.0, QtCore.QPoint(0, 0)
+        self.update()
+
+    def leaveEvent(self, event):
+        self.probed.emit(-1, -1)
+        super().leaveEvent(event)
+
+    def _pixel_at(self, pos):
+        """Widget point -> (col, row) in the SOURCE array, or (-1, -1) if not over an image.
+
+        Uses the rects recorded during the last paint, so it cannot drift from what is drawn --
+        recomputing the layout here would be a second implementation of the same arithmetic.
+        """
+        if self.source is None:
+            return -1, -1
+        h, w = self.source.shape[:2]
+        for rect in self._image_rects:
+            if rect is not None and rect.contains(pos) and rect.width() and rect.height():
+                col = int((pos.x() - rect.left()) / rect.width() * w)
+                row = int((pos.y() - rect.top()) / rect.height() * h)
+                return max(0, min(w - 1, col)), max(0, min(h - 1, row))
+        return -1, -1
+
+    def set_source(self, linear, before_image):
+        self.source, self._before, self._after = linear, before_image, None
+        self.update()
+
+    def set_graded(self, after_image):
+        self._after = after_image
+        self.update()
+
+    def paintEvent(self, _event):
+        p = QtGui.QPainter(self)
+        rect = self.rect().adjusted(0, 0, -1, -1)
+        p.fillRect(rect, QtGui.QColor(28, 28, 30))
+        if self._before is None:
+            p.setPen(QtGui.QColor(150, 150, 150))
+            p.drawText(rect, QtCore.Qt.AlignCenter,
+                       'no diffuse loaded  --  "Diffuse..." to pick one')
+            return
+        half = rect.width() // 2
+        self._image_rects = [None, None]
+        for i, (img, label) in enumerate(((self._before, "diffuse"), (self._after, "graded"))):
+            cell = QtCore.QRect(rect.left() + i * half, rect.top(), half - 4, rect.height() - 16)
+            if img is not None:
+                fit = img.size().scaled(cell.size(), QtCore.Qt.KeepAspectRatio)
+                # Zoom past 1:1 uses FastTransformation so texels stay crisp squares -- smoothing
+                # a magnified texture hides exactly the per-pixel detail you zoomed in to see.
+                mode = (QtCore.Qt.SmoothTransformation if self._zoom <= 1.0
+                        else QtCore.Qt.FastTransformation)
+                scaled = img.scaled(fit * self._zoom, QtCore.Qt.KeepAspectRatio, mode)
+                ox = cell.left() + (cell.width() - scaled.width()) // 2 + self._pan.x()
+                oy = cell.top() + (cell.height() - scaled.height()) // 2 + self._pan.y()
+                p.save()
+                p.setClipRect(cell)          # zoomed images must not spill into each other
+                p.drawImage(ox, oy, scaled)
+                p.restore()
+                # record for the hover probe -- see _pixel_at
+                self._image_rects[i] = QtCore.QRect(ox, oy, scaled.width(), scaled.height())
+            p.setPen(QtGui.QColor(160, 160, 160))
+            p.drawText(QtCore.QRect(cell.left(), rect.bottom() - 14, cell.width(), 14),
+                       QtCore.Qt.AlignHCenter, label)
+
+
+class _PaletteGraph(QtWidgets.QWidget):
+    """The palette as three per-channel curves -- the cosine gradient, graphed.
+
+    JWE3's palette is `a + b*cos(2pi*(c*t + d))` per channel, i.e. exactly the Inigo Quilez cosine
+    palette that thi.ng/gradients is built on, with the FGM's gradOffset/Amplitude/Freq/Phase as
+    (a, b, c, d). Plotting the ramp's channels therefore graphs the coefficients directly -- there
+    is no separate maths here, it reads the SAME sampled ramp the strip does, so the two can never
+    disagree about what the palette is.
+
+    Reading it: amplitude is the height of a curve's swing, offset its centre line, frequency how
+    many humps fit in the window, and phase where they sit. Channels that swing in opposite
+    directions give a hue shift across the body; channels that swing together give light-to-dark.
+    """
+
+    PENS = ((255, 96, 96), (96, 220, 96), (110, 150, 255))
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._colours = []
+        self._marker = None
+        self.setMinimumHeight(96)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+
+    def set_ramp(self, colours):
+        self._colours = list(colours)
+        self.update()
+
+    def set_marker(self, frac):
+        """Where the Height slider is sampling, as 0..1 across the displayed cycle (None hides)."""
+        self._marker = frac
+        self.update()
+
+    def paintEvent(self, _event):
+        p = QtGui.QPainter(self)
+        p.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        rect = self.rect().adjusted(0, 0, -1, -1)
+        p.fillRect(rect, QtGui.QColor(28, 28, 30))
+
+        # grid at 0.0 / 0.5 / 1.0 so amplitude and offset can be read off by eye
+        p.setPen(QtGui.QPen(QtGui.QColor(70, 70, 74), 1, QtCore.Qt.DotLine))
+        for frac in (0.0, 0.5, 1.0):
+            y = rect.top() + (1.0 - frac) * rect.height()
+            p.drawLine(int(rect.left()), int(y), int(rect.right()), int(y))
+
+        n = len(self._colours)
+        if n < 2:
+            p.setPen(QtGui.QColor(150, 150, 150))
+            p.drawText(rect, QtCore.Qt.AlignCenter, "no palette")
+            return
+
+        for ch, (cr, cg, cb) in enumerate(self.PENS):
+            path = QtGui.QPainterPath()
+            for i, rgb in enumerate(self._colours):
+                x = rect.left() + rect.width() * (i / float(n - 1))
+                y = rect.top() + rect.height() * (1.0 - rgb[ch] / 255.0)
+                if i == 0:
+                    path.moveTo(x, y)
+                else:
+                    path.lineTo(x, y)
+            p.setPen(QtGui.QPen(QtGui.QColor(cr, cg, cb), 1.6))
+            p.drawPath(path)
+
+        if self._marker is not None:
+            x = rect.left() + rect.width() * max(0.0, min(1.0, self._marker))
+            p.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 190), 1))
+            p.drawLine(int(x), rect.top(), int(x), rect.bottom())
+            tri = QtGui.QPolygon([QtCore.QPoint(int(x), rect.top() + 7),
+                                  QtCore.QPoint(int(x) - 5, rect.top()),
+                                  QtCore.QPoint(int(x) + 5, rect.top())])
+            p.setBrush(QtGui.QColor(255, 255, 255, 220))
+            p.setPen(QtCore.Qt.NoPen)
+            p.drawPolygon(tri)
 
 
 class _PaletteStrip(QtWidgets.QWidget):
@@ -252,6 +554,7 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         content = QtWidgets.QWidget()
         outer = QtWidgets.QVBoxLayout(content)
         outer.addWidget(self._build_preview_box())
+        outer.addWidget(self._build_texture_box())
         outer.addWidget(self._build_colour_box())
         outer.addWidget(self._build_grade_box())
         outer.addWidget(self._build_layers_box())
@@ -267,7 +570,7 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         # A scroll area's own minimum would otherwise grow to fit its content, which is exactly
         # what stops the window shrinking. Set our own floor and a comfortable opening size.
         self.setMinimumSize(420, 300)
-        self.resize(700, 820)
+        self.resize(820, 900)   # wider: the diffuse preview is two images side by side
 
         self.statusBar().showMessage("ready")
 
@@ -279,9 +582,37 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         self.species_combo.setEditable(True)
         form.addRow("Species", self.species_combo)
 
+        # Per-species texture folder. Replaces copying extracted texture sets into the install's
+        # `Textures/<Species>` folder, which was lost on every reinstall and could not be shared.
+        # Read-only field + Browse: the path is chosen with a picker so a typo cannot silently
+        # produce "no masks found" with a plausible-looking path in the box.
+        self.textures_edit = QtWidgets.QLineEdit()
+        self.textures_edit.setReadOnly(True)
+        self.textures_edit.setPlaceholderText("(not set - masks come from the imported model's folder)")
+        self.textures_button = QtWidgets.QPushButton("Browse...")
+        self.textures_clear = QtWidgets.QPushButton("Clear")
+        self.textures_clear.setToolTip("Forget this species' texture folder")
+        _tex_row = QtWidgets.QWidget()
+        _tex_lay = QtWidgets.QHBoxLayout(_tex_row)
+        _tex_lay.setContentsMargins(0, 0, 0, 0)
+        _tex_lay.addWidget(self.textures_edit, 1)
+        _tex_lay.addWidget(self.textures_button)
+        _tex_lay.addWidget(self.textures_clear)
+        form.addRow("Textures", _tex_row)
+
         self.object_name_edit = QtWidgets.QLineEdit()
         self.object_name_edit.setPlaceholderText("name of the imported .ms2 mesh object in Blender")
-        form.addRow("Blender object", self.object_name_edit)
+        # "From selected" saves hunting for the .fgm on disk when the model is already in the
+        # viewport: the material records where it was graded from, so the editor can just open it.
+        self.from_selected_button = QtWidgets.QPushButton("From selected")
+        self.from_selected_button.setToolTip(
+            "Adopt the mesh selected in Blender, and open the variant .fgm it was graded from")
+        _obj_row = QtWidgets.QWidget()
+        _obj_lay = QtWidgets.QHBoxLayout(_obj_row)
+        _obj_lay.setContentsMargins(0, 0, 0, 0)
+        _obj_lay.addWidget(self.object_name_edit, 1)
+        _obj_lay.addWidget(self.from_selected_button)
+        form.addRow("Blender object", _obj_row)
 
         self.follow_check = QtWidgets.QCheckBox("Follow Blender imports")
         self.follow_check.setChecked(True)
@@ -302,9 +633,228 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         form.addRow(holder)
         return box
 
+    def _build_texture_box(self):
+        box = QtWidgets.QGroupBox("Diffuse  (before / after, at colourWeight 1)")
+        lay = QtWidgets.QVBoxLayout(box)
+
+        self.texture_view = _TextureView()
+        self.texture_view.clicked.connect(self._open_texture_window)
+        self.texture_view.probed.connect(self._probe_pixel)
+        self.texture_view.setToolTip(
+            "Click to open a larger, resizable copy that follows your edits live.\n\n"
+            "The variant's grade applied to a real base diffuse, pixel by pixel.\n\n"
+            "EXACT here: the albedo (it is the texture), the key mask (the shader keys off this\n"
+            "same raw diffuse), both grades, and the gradient maths.\n\n"
+            "ASSUMED: colourWeight = 1, so this is the grade at FULL strength -- the layer stack\n"
+            "that would veto it in places is not available here. And the height driving the\n"
+            "gradient is the slider, not the model's real composited height. Sweep it.\n\n"
+            "Blender stays the authority for a finished skin.")
+        lay.addWidget(self.texture_view)
+
+        row = QtWidgets.QHBoxLayout()
+        self.texture_open_button = QtWidgets.QPushButton("Diffuse...")
+        self.texture_open_button.setToolTip("Pick a *.pbasediffusetexture.png to preview against")
+        row.addWidget(self.texture_open_button)
+        self.texture_save_button = QtWidgets.QPushButton("Save graded...")
+        self.texture_save_button.setToolTip(
+            "Write the graded texture out as a PNG.\n\n"
+            "Saved at the source's FULL resolution, re-graded from the original file -- not the\n"
+            "downscaled copy shown here, which exists only to keep the preview interactive.\n\n"
+            "Same caveats as the preview: colourWeight 1, and the gradient at the Height slider.")
+        row.addWidget(self.texture_save_button)
+        row.addWidget(QtWidgets.QLabel("Height"))
+        self.texture_height = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.texture_height.setRange(0, 1000)
+        self.texture_height.setValue(500)
+        self.texture_height.setToolTip(
+            "Which point of the palette the gradient is sampled at.\n\n"
+            "The real value is the model's composited layer height, which is not available in the\n"
+            "editor -- so this is a sweep, not a prediction. A variant runs many cycles across a\n"
+            "dinosaur, so dragging this shows the range the gradient covers.")
+        row.addWidget(self.texture_height, 1)
+        self.texture_note = QtWidgets.QLabel("")
+        self.texture_note.setStyleSheet("color: #999;")
+        lay.addLayout(row)
+        lay.addWidget(self.texture_note)
+
+        self.texture_height.valueChanged.connect(lambda _v: self._refresh_texture())
+        return box
+
+    def _colour_weight_for(self, shape):
+        """The layer stack's per-pixel colourWeight for this species, or None if unavailable.
+
+        Without it the preview grades EVERYTHING, including teeth, tongue, mouth flesh and eye --
+        which the game never does, because those swatches carry a colouring weight of 0. Needs the
+        species' LayerJSON and its blend-weight masks; falls back to a flat 1.0 (and says so) when
+        either is missing, rather than failing to preview at all.
+        """
+        try:
+            import json
+            import texture_preview as tp
+            from preview_assets import layers_json_for, mask_dir_for, detect_mask_prefix
+            species = (self.species_combo.currentText() or "").strip()
+            if not species:
+                return None
+            lj = layers_json_for(species)
+            md = mask_dir_for(species)
+            if not lj or not md:
+                return None
+            data = json.load(open(lj, encoding="utf-8"))
+            layers = data["layers"] if isinstance(data, dict) else data
+            prefix = detect_mask_prefix(md)
+            if not prefix:
+                return None
+            return tp.colour_weight_map(layers, md, "%s.playered_blendweights" % prefix,
+                                        list(self.model.layerColourWeights), shape)
+        except Exception:
+            return None
+
+    def _probe_pixel(self, col, row):
+        """Report what the grade does to one texel: its colour in and out, and WHICH grade it took.
+
+        `keyBlend` is the interesting number and the one that cannot be seen by eye: it decides
+        whether a texel is repainted by the palette or keeps its base grade, and it is computed from
+        the raw diffuse rather than from anything visible in the result.
+        """
+        if col < 0 or self.texture_view.source is None:
+            self.texture_note.setText("height %.3f" % (self.texture_height.value() / 1000.0))
+            return
+        try:
+            import texture_preview as tp
+            from preview_bridge import model_to_block
+            block = model_to_block(self.model)
+            src = self.texture_view.source[row:row + 1, col:col + 1, :]
+            h = self.texture_height.value() / 1000.0
+            cwmap = getattr(self, 'texture_weight', None)
+            cw = 1.0 if cwmap is None else cwmap[row:row + 1, col:col + 1, :]
+            out = tp.grade_image(src, block, height=h, colour_weight=cw)
+            kb = float(tp.key_blend(block, src)[0, 0, 0])
+            enc = lambda a: tuple(int(round(v * 255)) for v in tp.linear_to_srgb(a)[0, 0])
+            self.texture_note.setText(
+                "(%d,%d)  %s -> %s   keyBlend %.2f  (%s grade)   height %.3f"
+                % (col, row, enc(src), enc(out), kb,
+                   "palette" if kb >= 0.5 else "base", h))
+        except Exception as e:
+            self.texture_note.setText("probe failed: %s: %s" % (type(e).__name__, e))
+
+    def save_graded_texture(self, out_path):
+        """Grade the source at FULL resolution and write it to `out_path`. Returns (w, h).
+
+        Deliberately re-reads the original rather than upscaling the preview: the preview is a
+        512 px copy that exists only so dragging a slider stays interactive, and saving that would
+        produce a blurry texture that looks like the grade went wrong.
+        """
+        import texture_preview as tp
+        from PIL import Image
+        from preview_bridge import model_to_block
+        path = getattr(self, "texture_path", None)
+        if not path:
+            raise RuntimeError("no diffuse loaded")
+        full = tp.load_texture(path, max_side=None)
+        cw = self._colour_weight_for(full.shape)
+        graded = tp.grade_image(full, model_to_block(self.model),
+                                height=self.texture_height.value() / 1000.0,
+                                colour_weight=1.0 if cw is None else cw)
+        buf = (tp.linear_to_srgb(graded) * 255.0 + 0.5).astype("uint8")
+        Image.fromarray(buf, mode="RGB").save(out_path)
+        return full.shape[1], full.shape[0]
+
+    def _open_texture_window(self):
+        """A larger, resizable copy of the diffuse preview that follows edits live.
+
+        Non-modal on purpose: the point is to drag sliders in the main window and watch this. It
+        shares nothing but the images -- the grade is still computed once, in `_refresh_texture`,
+        and pushed to both views, so the two can never show different results.
+        """
+        win = getattr(self, "texture_window", None)
+        if win is None:
+            # A QDialog gets no maximise button on Windows, so it cannot be full-screened. Ask for
+            # the full window frame explicitly -- this is a viewer, and being able to fill the
+            # screen is most of the point of detaching it.
+            win = QtWidgets.QDialog(self, QtCore.Qt.Window
+                                    | QtCore.Qt.WindowMinimizeButtonHint
+                                    | QtCore.Qt.WindowMaximizeButtonHint
+                                    | QtCore.Qt.WindowCloseButtonHint)
+            win.setWindowTitle("Diffuse  -  before / after     "
+                               "(wheel = zoom, drag = pan, F11 = full screen, Esc = reset)")
+            win.setSizeGripEnabled(True)
+            lay = QtWidgets.QVBoxLayout(win)
+            lay.setContentsMargins(4, 4, 4, 4)
+            view = _TextureView(expandable=False)
+            lay.addWidget(view)
+            win._view = view
+
+            def _keys(event, _w=win, _v=view):
+                if event.key() == QtCore.Qt.Key_F11:
+                    _w.showNormal() if _w.isFullScreen() else _w.showFullScreen()
+                elif event.key() == QtCore.Qt.Key_Escape:
+                    # Esc resets the zoom rather than closing: closing on Esc is the QDialog
+                    # default and it is the wrong reflex for a viewer you are panning around.
+                    if _w.isFullScreen():
+                        _w.showNormal()
+                    else:
+                        _v.reset_view()
+                else:
+                    QtWidgets.QDialog.keyPressEvent(_w, event)
+            win.keyPressEvent = _keys
+            win.resize(1100, 620)
+            self.texture_window = win
+        win._view.set_source(self.texture_view.source, self.texture_view._before)
+        win._view.set_graded(self.texture_view._after)
+        win.show()
+        win.raise_()
+        win.activateWindow()
+
+    def _refresh_texture(self):
+        """Re-grade the loaded diffuse. Cheap on a downscaled copy; skipped when none is loaded."""
+        if not hasattr(self, "texture_view") or self.texture_view.source is None:
+            return
+        try:
+            import texture_preview as tp
+            from preview_bridge import model_to_block
+            block = model_to_block(self.model)
+            h = self.texture_height.value() / 1000.0
+            cw = getattr(self, 'texture_weight', None)
+            graded = tp.grade_image(self.texture_view.source, block, height=h,
+                                    colour_weight=1.0 if cw is None else cw)
+            after = tp.to_qimage(graded)
+            self.texture_view.set_graded(after)
+            self.texture_note.setText("height %.3f" % h)
+            win = getattr(self, "texture_window", None)
+            if win is not None and win.isVisible():
+                win._view.set_graded(after)
+        except Exception as e:
+            self.texture_note.setText("preview unavailable: %s: %s" % (type(e).__name__, e))
+
+    def load_texture(self, path):
+        """Load a diffuse PNG into the preview. Returns True on success."""
+        import texture_preview as tp
+        self.texture_path = path                # remembered so Save can re-grade at FULL res
+        linear = tp.load_texture(path)          # decode ONCE; it is the expensive part
+        self.texture_weight = self._colour_weight_for(linear.shape)
+        before = tp.to_qimage(linear)
+        self.texture_view.set_source(linear, before)
+        win = getattr(self, "texture_window", None)
+        if win is not None:
+            win._view.set_source(linear, before)   # keep a detached window on the new texture
+        self._refresh_texture()
+        return True
+
     def _build_colour_box(self):
         box = QtWidgets.QGroupBox("Palette  (one full cycle, on neutral grey)")
         lay = QtWidgets.QVBoxLayout(box)
+        self.palette_graph = _PaletteGraph()
+        self.palette_graph.setToolTip(
+            "The same cycle as the strip below, drawn as one curve per channel.\n\n"
+            "JWE3's palette is a COSINE GRADIENT, the same form popularised by Inigo Quilez and\n"
+            "used by thi.ng/gradients:\n\n"
+            "    colour(t) = a + b * cos(2pi * (c*t + d))\n\n"
+            "and the FGM stores exactly those four coefficients per channel:\n"
+            "    a = gradOffset/511      b = gradAmplitude/511\n"
+            "    c = gradFreq            d = gradPhase/511\n\n"
+            "So a variant's palette IS a set of IQ coefficients, and this is their graph. A flat\n"
+            "line means zero amplitude -- an unharvested seed, not a black palette.")
+        lay.addWidget(self.palette_graph)
         self.palette_strip = _PaletteStrip()
         self.palette_strip.setToolTip(
             "Every colour this variant can produce, computed here from the same maths the\n"
@@ -326,13 +876,23 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
             row = _Row(field, label, lo, hi, is_int)
             row.valueChanged.connect(self._on_row_changed)
             self._rows[field] = row
-            form.addRow(label, row)
+            tip = TOOLTIPS.get(field)
+            # On the LABEL as well as the row: the label is the wider hover target, and it is what
+            # people point at when they want to know what something means.
+            label_widget = QtWidgets.QLabel(label)
+            if tip:
+                row.setToolTip(tip)
+                label_widget.setToolTip(tip)
+            form.addRow(label_widget, row)
 
         self.colour_button = QtWidgets.QPushButton()
         self.colour_button.setObjectName("colourSwatch")   # theme.swatch_style targets this
         self.colour_button.setFixedWidth(90)
         self.colour_button.clicked.connect(self._pick_colour)
-        form.addRow("Key colour", self.colour_button)
+        self.colour_button.setToolTip(TOOLTIPS["keyColour"])
+        _kc_label = QtWidgets.QLabel("Key colour")
+        _kc_label.setToolTip(TOOLTIPS["keyColour"])
+        form.addRow(_kc_label, self.colour_button)
         return box
 
     def _build_layers_box(self):
@@ -371,6 +931,7 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
             self._loading = False
         self._refresh_badge()
         self._refresh_ramp()
+        self._refresh_texture()
 
     def load_model(self, model, path=None):
         """Replace the edited model (used by File > Open / New) and refresh the whole window."""
@@ -409,6 +970,7 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
             raise KeyError("unknown field %r" % name)
         self._refresh_badge()
         self._refresh_ramp()
+        self._refresh_texture()
         self._schedule_push()
 
     def _write_field(self, field, value):
@@ -426,6 +988,7 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         if field in ("seed", "complexity"):
             self._refresh_badge()
         self._refresh_ramp()          # every field feeds the colour, so always
+        self._refresh_texture()
         self._schedule_push()
 
     # -- key colour --------------------------------------------------------
@@ -446,6 +1009,7 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         self.model.keyColour = [c.redF(), c.greenF(), c.blueF()]
         self._refresh_colour_button()
         self._refresh_ramp()
+        self._refresh_texture()
         self._schedule_push()
 
     # -- badges ------------------------------------------------------------
@@ -479,8 +1043,48 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
                     % self.model.seed) if is_flat(block) else ""
         except Exception as e:
             self.palette_strip.set_ramp([], "colour preview unavailable: %s" % e)
+            if hasattr(self, "palette_graph"):
+                self.palette_graph.set_ramp([])
             return
         self.palette_strip.set_ramp(colours, note)
+        if hasattr(self, "palette_graph"):
+            # A denser sweep than the strip: the strip only has to read as a smooth band, the graph
+            # has to show frequency, and 96 samples visibly aliases on a high-freq palette.
+            try:
+                from palette_preview import ramp as _ramp
+                self.palette_graph.set_ramp(_ramp(block, steps=256))
+            except Exception:
+                self.palette_graph.set_ramp(colours)
+            self.palette_graph.set_marker(self._palette_marker(block))
+
+    def _palette_marker(self, block):
+        """Where the Height slider samples, as 0..1 across the cycle shown -- or None.
+
+        DELIBERATELY None on most real variants, and that is the honest answer rather than a
+        limitation. The model does not sample a point, it sweeps a window: `t` runs from
+        `paletteOffset` at height 0 to `100*paletteScale + paletteOffset` at height 1. Pyroraptor
+        v00 has paletteScale 5.0 and a period of 0.0196, so the body spans **500 full cycles** --
+        two texels a hair apart in height land on unrelated palette colours, and `% 1` on such a
+        span is numerically arbitrary rather than informative.
+
+        So the marker is only drawn when the whole model fits inside a couple of cycles, where a
+        single position genuinely means something. Otherwise use the pixel probe: hover the diffuse
+        preview to see what the grade does to a specific texel.
+        """
+        if not hasattr(self, "texture_height"):
+            return None
+        try:
+            from palette_preview import palette_period, ts_for_height
+            period = palette_period(block)
+            if not period or period <= 0 or period != period:      # 0, negative or NaN
+                return None
+            span = abs(ts_for_height(block, 1.0) - ts_for_height(block, 0.0))
+            if span / period > 2.0:
+                return None
+            h = self.texture_height.value() / 1000.0
+            return ((ts_for_height(block, h) - ts_for_height(block, 0.0)) / period) % 1.0
+        except Exception:
+            return None
 
     @staticmethod
     def _gradient_exact(seed, complexity):
