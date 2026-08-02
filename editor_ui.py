@@ -565,7 +565,21 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         self.scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.scroll.setWidget(content)
-        self.setCentralWidget(self.scroll)
+
+        # Variant and Pattern are separate cosmetic axes in game and either may be applied alone,
+        # so they get separate tabs rather than one long pane. The pattern tab feeds the SAME
+        # diffuse preview -- see _refresh_texture -- so its edits show on the graded texture live.
+        self.tabs = QtWidgets.QTabWidget()
+        self.tabs.addTab(self.scroll, "Variant")
+        try:
+            from pattern_tab import PatternTab
+            self.pattern_tab = PatternTab()
+            self.pattern_tab.changed.connect(self._refresh_texture)
+            self.tabs.addTab(self.pattern_tab, "Pattern")
+        except Exception as e:                       # never let the pattern tab break the editor
+            self.pattern_tab = None
+            print("pattern tab unavailable: %s: %s" % (type(e).__name__, e))
+        self.setCentralWidget(self.tabs)
 
         # A scroll area's own minimum would otherwise grow to fit its content, which is exactly
         # what stops the window shrinking. Set our own floor and a comfortable opening size.
@@ -755,6 +769,14 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         graded = tp.grade_image(full, model_to_block(self.model),
                                 height=self.texture_height.value() / 1000.0,
                                 colour_weight=1.0 if cw is None else cw)
+        # Apply the pattern here TOO. This path grades independently of _refresh_texture, so
+        # without this the saved file silently lacks the overlay the screen is showing -- the
+        # worst kind of mismatch, because the preview looks like proof the file is right.
+        # composite_onto resamples the index map to whatever resolution it is handed, so full-res
+        # works the same as the 512 px preview.
+        pt = getattr(self, "pattern_tab", None)
+        if pt is not None:
+            graded = pt.composite_onto(graded)
         buf = (tp.linear_to_srgb(graded) * 255.0 + 0.5).astype("uint8")
         Image.fromarray(buf, mode="RGB").save(out_path)
         return full.shape[1], full.shape[0]
@@ -817,6 +839,12 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
             cw = getattr(self, 'texture_weight', None)
             graded = tp.grade_image(self.texture_view.source, block, height=h,
                                     colour_weight=1.0 if cw is None else cw)
+            # The pattern composites AFTER the grade -- they are independent cosmetic axes, and
+            # blender_parts.splice_at orders the node chain the same way (CHAIN_POS grade 10,
+            # pattern 20), so the two previews agree about ordering as well as arithmetic.
+            pt = getattr(self, "pattern_tab", None)
+            if pt is not None:
+                graded = pt.composite_onto(graded)
             after = tp.to_qimage(graded)
             self.texture_view.set_graded(after)
             self.texture_note.setText("height %.3f" % h)

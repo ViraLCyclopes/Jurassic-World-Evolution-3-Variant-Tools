@@ -75,6 +75,48 @@ def bake(model, interp="linear"):
     }
 
 
+def composite(albedo_linear, index_map, model, interp="linear"):
+    """Overlay a pattern on a LINEAR albedo image. Returns a new (H, W, 3) float array.
+
+    THE ONE DEFINITION OF THE COMPOSITE. `blender_pattern_nodes.build_group` implements the same
+    rule with a Mix node labelled "albedo -> pattern colour, by opacity"; this is the numpy twin so
+    the desktop preview and the Blender preview cannot drift apart. If the rule is ever corrected
+    (PATTERNS.md still marks the composite HYPOTHESIS -- it was never traced in the IR), change it
+    in both, and the selftest below pins them to the same arithmetic.
+
+        out = albedo * (1 - opacity) + patternColour * opacity
+
+    `index_map` is the species' `u_basePatternMap` as a greyscale array -- bytes (0..255) or floats
+    (0..1); both are accepted because the loaders in this package disagree about which they hand
+    back, and guessing wrong silently maps the whole mesh to LUT entry 0.
+
+    Emissive is deliberately NOT composited: it is an emission term, not albedo, and every pattern
+    measured carries exactly one emissive key, so folding it into a diffuse preview would misreport
+    the colour rather than add information.
+    """
+    a = np.asarray(albedo_linear, dtype=np.float64)
+    if a.ndim != 3 or a.shape[2] < 3:
+        raise ValueError("albedo_linear must be (H, W, >=3), got %r" % (a.shape,))
+    idx = np.asarray(index_map, dtype=np.float64)
+    if idx.ndim == 3:
+        idx = idx[..., 0]
+    if idx.shape != a.shape[:2]:
+        raise ValueError("index map %r does not match albedo %r" % (idx.shape, a.shape[:2]))
+    # Accept bytes or 0..1 floats. A float map maxing at 1.0 and a byte map maxing at 255 are not
+    # distinguishable from dtype alone once something has cast to float, so test the RANGE.
+    if idx.max() > 1.0:
+        idx = idx / 255.0
+    pos = np.clip(idx, 0.0, 1.0) * (LUT_SIZE - 1)
+
+    lut = bake(model, interp)
+    grid = np.arange(LUT_SIZE, dtype=np.float64)
+    colour = np.stack([np.interp(pos, grid, lut["colour"][:, c]) for c in range(3)], axis=-1)
+    opacity = np.interp(pos, grid, lut["opacity"][:, 0])[..., None]
+
+    out = a[..., :3] * (1.0 - opacity) + colour * opacity
+    return out
+
+
 def index_of(byte_value):
     """Greyscale byte from u_basePatternMap -> position on the 0..31 key axis.
 
@@ -241,8 +283,52 @@ def background_opacity(model, background_byte, interp="linear"):
     return float(_sample(lut, index_of(background_byte))[0])
 
 
+def _selftest_composite():
+    """The composite must be a plain lerp toward the pattern colour, by opacity."""
+    import numpy as np
+    from pattern_model import PatternModel
+
+    m = PatternModel.template()
+    # opacity 0 at index 0, 1 at index 31; colour pure red across the whole axis
+    m.opacityKeys[0] = (0, 0.0)
+    m.opacityKeys[1] = (31, 1.0)
+    m.colourKeys[0] = (0, [1.0, 0.0, 0.0])
+    m.colourKeys[1] = (31, [1.0, 0.0, 0.0])
+
+    albedo = np.full((1, 3, 3), 0.5)
+    idx = np.array([[0, 127.5, 255]], dtype=np.float64)      # bytes -> pos 0, 15.5, 31
+    out = composite(albedo, idx, m)
+
+    assert np.allclose(out[0, 0], [0.5, 0.5, 0.5]), out[0, 0]      # opacity 0 -> untouched
+    assert np.allclose(out[0, 2], [1.0, 0.0, 0.0]), out[0, 2]      # opacity 1 -> pure pattern
+    assert np.allclose(out[0, 1], [0.75, 0.25, 0.25], atol=1e-3), out[0, 1]   # half way
+
+    # A 0..1 FLOAT map must behave identically to the byte map. The loaders in this package
+    # disagree about which they return, and guessing wrong maps everything to LUT entry 0 --
+    # which renders as a flat tint and reads as "the pattern is broken".
+    out_f = composite(albedo, idx / 255.0, m)
+    assert np.allclose(out, out_f), "byte and float index maps disagree"
+
+    # An all-zero-opacity pattern must be an exact no-op. Most of a species' body sits at its
+    # background index where opacity is 0, so any drift here would tint the whole animal.
+    blank = PatternModel.template()
+    blank.opacityKeys[0] = (0, 0.0)
+    blank.opacityKeys[1] = (31, 0.0)
+    blank.colourKeys[0] = (0, [1.0, 1.0, 0.0])
+    assert np.array_equal(composite(albedo, idx, blank), albedo[..., :3]), "blank pattern altered albedo"
+
+    # shape mismatches must raise, not broadcast into nonsense
+    try:
+        composite(albedo, np.zeros((2, 2)), m)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("mismatched index map was accepted")
+
+
 def selftest():
     import numpy as np
+    _selftest_composite()
 
     # --- real Lokiceratops_Pattern_01_00 colour keys ---
     colour = [

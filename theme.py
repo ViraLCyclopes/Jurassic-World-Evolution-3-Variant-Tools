@@ -53,6 +53,39 @@ QMenu::item {{ padding: 6px 24px 6px 12px; border-radius: 4px; }}
 QMenu::item:selected {{ background-color: {bg_hover}; color: {accent_hover}; }}
 QMenu::separator {{ height: 1px; background: {border}; margin: 4px 6px; }}
 
+/* --- tabs ---
+   An unstyled QTabBar keeps the platform default: a white strip with dark text, which on this
+   dark palette reads as an unlit block with near-invisible labels. Style BOTH the pane and the
+   bar -- styling only ::tab leaves the pane's own white background behind the page. */
+QTabWidget::pane {{
+    background-color: {bg_card};
+    border: 1px solid {border};
+    border-radius: 6px;
+    top: -1px;                       /* tuck the pane under the selected tab's bottom edge */
+}}
+QTabWidget::tab-bar {{ left: 4px; }}
+QTabBar {{ background: transparent; }}
+QTabBar::tab {{
+    background-color: {bg_input};
+    color: {text_muted};
+    border: 1px solid {border};
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 6px 16px;
+    margin-right: 2px;
+}}
+QTabBar::tab:selected {{
+    background-color: {bg_card};
+    color: {accent_hover};
+    border-color: {accent};
+}}
+QTabBar::tab:hover:!selected {{
+    background-color: {bg_hover};
+    color: {text_main};
+}}
+QTabBar::tab:!selected {{ margin-top: 2px; }}   /* unselected sit slightly lower */
+
 /* --- cards --- */
 QGroupBox {{
     background-color: {bg_card};
