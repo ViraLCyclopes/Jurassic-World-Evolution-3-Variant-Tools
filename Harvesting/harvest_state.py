@@ -115,6 +115,38 @@ def backups():
     return sorted(out)
 
 
+def modified_files():
+    """Backups whose LIVE file still DIFFERS. This is the real "is the game modified" answer.
+
+    NOT "do backups exist". `restore_seedsweep_all.py` copies each backup back and LEAVES IT ON
+    DISK, so the backup folder survives a successful restore forever. Treating existence as
+    "modified" pinned the banner on after a restore AND made `install_blockers()` refuse every
+    future sweep -- reported by a user whose game was verifiably clean (14 backups, 14 identical)
+    while the UI insisted it was modified.
+
+    Reuses `restore_seedsweep_all.plan()` rather than reimplementing it: that function already
+    knows how to find a live path for a backup the manifest never recorded, which is the hard part.
+
+    Falls back to "every backup" if the comparison cannot run (no manifest, game folder not found).
+    Unknown must never read as clean -- calling a modified game clean is what lets a second sweep
+    install over it and destroy the restore path.
+    """
+    if not backups():
+        return []
+    try:
+        import restore_seedsweep_all as rs
+        # `rs.MANIFEST` is a module-level constant bound at FIRST import, so it goes stale the
+        # moment the config folder changes -- which is every test, and any session where the user
+        # repoints setup_gui at another install. Rebind before asking.
+        rs.MANIFEST = _hpaths.manifest()
+        rows = rs.plan()
+    except BaseException:
+        # plan() raises SystemExit when the manifest or game folder is missing, and SystemExit is
+        # not an Exception -- catch BaseException or this takes the process with it.
+        return backups()
+    return [live or bak for bak, live, same in rows if not same]
+
+
 def _manifest_hosts():
     """Species named in the manifest. Informational ONLY -- see backups()."""
     try:
@@ -167,7 +199,9 @@ def game_is_running(process_name=GAME_PROCESS):
 def install_blockers():
     """Why a sweep must NOT be installed right now. Empty list means it is safe to install."""
     reasons = []
-    if backups():
+    if modified_files():
+        # Deliberately modified_files(), not backups(): a restored game keeps its backup folder,
+        # and blocking on mere existence made every sweep after the first one impossible.
         reasons.append(
             "Your game files are ALREADY MODIFIED. Installing another sweep would back up the "
             "modified files as if they were the originals, permanently destroying the restore "
@@ -184,7 +218,8 @@ def install_blockers():
 def detect():
     """Read everything off disk and decide what the user should do next."""
     bak = backups()
-    modified = bool(bak)
+    # "backups exist" is NOT "modified" -- restore leaves them on disk. See modified_files().
+    modified = bool(modified_files())
     caps = _captures()
     stamp = last_harvest_stamp()
     new_caps = [c for c in caps if os.path.getmtime(c) > stamp]
@@ -278,6 +313,35 @@ def selftest():
         assert st.game_modified is True, "backups present must mean modified"
         assert st.backup_count == 1, st.backup_count
         assert st.manifest_hosts == [], st.manifest_hosts
+        shutil.rmtree(td, ignore_errors=True)
+
+        # --- A RESTORED GAME MUST NOT REPORT MODIFIED, even though the backups are still there.
+        # restore_seedsweep_all.py copies backups back and LEAVES THEM ON DISK. Treating existence
+        # as "modified" stuck the banner on permanently and blocked every later sweep. Reported by
+        # a user whose game was clean (14 backups, all identical) while the UI said otherwise.
+        td, work = fresh()
+        bdir = os.path.join(work, "backups")
+        os.makedirs(bdir)
+        live_dir = os.path.join(td, "ovldata", "Content0", "Dinosaurs", "Land", "Testosaurus", "Male")
+        os.makedirs(live_dir)
+        live = os.path.join(live_dir, "Testosaurus_Male.ovl")
+        for p in (live, os.path.join(bdir, "Testosaurus_Male.ovl")):
+            with open(p, "wb") as fh:
+                fh.write(b"ORIGINAL BYTES")
+        with open(_hpaths.manifest(), "w", encoding="utf-8") as fh:
+            json.dump({"backup": bdir,
+                       "hosts": [{"species": "Testosaurus", "realm": "Land", "ovl": live}]}, fh)
+        st = detect()
+        assert st.backup_count == 1, st.backup_count
+        assert st.game_modified is False, "identical backup and live file means RESTORED"
+        assert not any("already modified" in r.lower() for r in install_blockers()), install_blockers()
+
+        # ...and once the live file really differs, it must report modified again
+        with open(live, "wb") as fh:
+            fh.write(b"SWEPT BYTES!!")
+        st = detect()
+        assert st.game_modified is True, "differing live file means modified"
+        assert any("already modified" in r.lower() for r in install_blockers()), install_blockers()
         shutil.rmtree(td, ignore_errors=True)
 
         # --- manifest present, NO backups -> not modified
