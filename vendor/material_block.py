@@ -99,7 +99,7 @@ def gradient(block, height):
     amplitude+offset sum /511 outside. Copied from registers %2864-%2886.
     """
     t = height * 100.0 * block["instancePaletteScale"] + block["instancePaletteOffset"]
-    ts = t / 51.0
+    ts = t / T_DIVISOR
     out = []
     for i in range(3):
         arg = 2.0 * math.pi * (ts * block["gradFreq"][i] + block["gradPhase"][i] / 511.0)
@@ -115,6 +115,10 @@ def hue_matrix(packed):
 
 
 REC709 = (0.2126, 0.7152, 0.0722)
+
+# `%2864 = fmul fast float %2824, 0x3F940A0500000000` -- that constant is 0.01956947 = 1/51.1, NOT
+# 1/51 (0.01960784). PALETTE.md was corrected; this file and blender_palette_nodes had drifted.
+T_DIVISOR = 51.1
 
 
 def hue_matrix_from_rotation(rot):
@@ -290,7 +294,7 @@ def selftest():
     # gradient: at height 0, t = offset = 3, so the cosine argument is fully determined.
     # Recompute it independently here rather than reusing gradient()'s own expression.
     g = gradient(b, 0.0)
-    ts = 3.0 / 51.0
+    ts = 3.0 / 51.1
     for i, (o, a, f, p) in enumerate(zip(b["gradOffset"], b["gradAmplitude"],
                                          b["gradFreq"], b["gradPhase"])):
         want = (o + a * math.cos(2 * math.pi * (ts * f + p / 511.0))) / 511.0
