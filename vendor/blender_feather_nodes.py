@@ -62,9 +62,15 @@ NON_BSDF_TARGETS = ("AO", "Height")
 #   pFeathers_Aniso_PackedTexture -- a per-texel anisotropy DIRECTION (R,G). Principled's
 #     "Anisotropic Rotation" is a scalar, not a tangent map, so there is nowhere to put it without
 #     a custom tangent setup. It affects specular streaking along the barbs, not base colour.
-KNOWN_UNUSED = {
-    "pFeathers_Aniso_PackedTexture": "anisotropy direction needs a tangent map, not a scalar",
-}
+#     ...BUT ITS R CHANNEL IS NOT ANISOTROPY. It is `%300` in the albedo path -- the shader reads
+#     `%303 = 1 - %300` and multiplies the card by it. Measured on Pyroraptor it is IDENTICALLY
+#     0.000 across the whole texture, so `1 - %300` is exactly 1 and the card passes through
+#     undiminished. That is why the slot is still resolved below and its R channel wired, while
+#     G (the actual direction data) stays unused.
+KNOWN_UNUSED = {}
+
+#: The slot whose R channel is `%300`. Kept separate from KNOWN_UNUSED because only R is consumed.
+ANISO_SLOT = "pFeathers_Aniso_PackedTexture"
 
 # Individual channels we map (so the mapping stays documented) but deliberately do NOT wire,
 # keyed "<slot>.<channel>". Same contract as KNOWN_UNUSED: declared, never silently dropped.
@@ -292,6 +298,19 @@ def build_feathers(obj, fgm_path, library_dir, mat_name=None):
                 report["wired"].append(slot)
             continue
 
+        if slot == ANISO_SLOT:
+            # R only: this is `%300`, the term the card is multiplied by as `1 - %300`.
+            # G is the anisotropy direction and stays unused (no tangent map to put it in).
+            ch = chans.get("R")
+            if ch:
+                n = tex(ch, slot=slot)
+                extras["Cavity"] = n.outputs["Color"]
+                report["wired"].append(slot + ".R->Cavity")
+            else:
+                report["skipped"].append((slot + ".R", "channel file missing"))
+            report["unused"].append((slot + ".G", "anisotropy direction needs a tangent map"))
+            continue
+
         if slot in KNOWN_UNUSED:
             report["unused"].append((slot, KNOWN_UNUSED[slot]))
             continue
@@ -322,12 +341,12 @@ def build_feathers(obj, fgm_path, library_dir, mat_name=None):
 
     # Base Color, MEASURED from 0202_ps_DinosaurFeathers_ClipDoubleSided (%861-%903):
     #
-    #     albedo = overlay( base = saturate(baseDiffuse - 1/255),  blend = (1 - AO) * detail )
+    #     albedo = overlay( base = saturate(baseDiffuse - 1/255),  blend = (1 - %300) * card )
     #
     # reading, in the IR's own registers:
     #
     #     %864..866 = saturate(%767 - 1/255)     %767 = pDinosaurFeathers_BaseDiffuseTexture, UV0
-    #     %303      = 1 - %300                   %300 = AO,                                   UV1
+    #     %303      = 1 - %300                   %300 = pFeathers_Aniso_PackedTexture.R,      UV1
     #     %304..306 = %303 * %184..186           %184 = the feather-card colour,              UV1
     #     %870..903 = the textbook overlay of %864 over %304
     #
@@ -343,20 +362,20 @@ def build_feathers(obj, fgm_path, library_dir, mat_name=None):
     #   * (1 - AO) multiplies the CARD COLOUR, not the base diffuse. AO and the card colour are both
     #     card-space (UV1) and the base diffuse is body-space (UV0), so pairing AO with the base
     #     diffuse was also mixing two different UV layers into one product.
-    # THE MASK ENTERS UN-INVERTED: `AO x detail`, NOT `(1 - AO) x detail`.
+    # `%300` IS NOT THE AO CHANNEL. It is `pFeathers_Aniso_PackedTexture.R`, measured identically
+    # 0.000, so `1 - %300` is 1 and the card passes through undiminished. There is NO deviation
+    # from the IR any more -- the code below is what the IR says, literally.
     #
-    # This is a KNOWING DEVIATION from the IR above, which plainly reads `%303 = 1 - %300`. It is
-    # made on measurement, against the game's own GBuffer albedo captured unlit with the ReShade
-    # add-on (see the JWE3_ReShadeAddon project) and decoded from sRGB. Ratios ours/game, sampled
-    # region-for-region on Pyroraptor v00:
+    # HISTORY, because this was wrong twice and both wrong answers looked measured:
+    #   * `(1 - AO) * card` -- AO read ~0.77, so this crushed the card to ~0.23 and the plumage
+    #     rendered 2-3x too dark;
+    #   * `AO * card` -- adopted 2026-08-01 as an empirical fix. It was endorsed by a comparison
+    #     of a box MEDIAN over our fan against a POINT sample of the game's brightest fan tip,
+    #     which is not the same quantity. Re-measured 2026-08-02 median-against-median on a
+    #     side-on capture it reads 0.69 / 0.75 of the game, i.e. still ~1.4x too dark.
     #
-    #     region     (1 - AO)            AO                  <- what we now use
-    #     big fan    0.43 / 0.43 / 0.45  0.88 / 0.90 / 0.94
-    #     coverts    0.34 / 0.38 / 0.36  1.04 / 1.17 / 1.15
-    #     tail       0.29 / 0.29 / 0.29  0.71 / 0.71 / 0.71
-    #
-    # The errors are UNIFORM across R/G/B in both cases -- a pure scale, no hue component -- and the
-    # overlay itself is exact (`2*base*blend`: big fan 2*0.292*0.263 = 0.1535 vs measured 0.1522).
+    # The overlay itself was never in doubt (`2*base*blend`: 2*0.292*0.263 = 0.1535 vs a measured
+    # 0.1522). Only the mask term was wrong.
     # So the mask term was the entire error.
     #
     # WHY THIS IS PROBABLY RIGHT FOR THE WRONG REASON, and what to check next: if `AO x card` is
@@ -365,17 +384,45 @@ def build_feathers(obj, fgm_path, library_dir, mat_name=None):
     # samples a DIFFERENT texture and inverting our node merely compensates. No shipped channel has
     # a mean near 0.228, so the real source is unidentified -- see the memory note. Resolve `%299`
     # from a capture and this should become `1 - <that texture>` again.
-    base, detail, ao = extras.get("Base"), extras.get("Detail"), extras.get("AO")
+    base, detail, cavity = extras.get("Base"), extras.get("Detail"), extras.get("Cavity")
     blend = detail
-    if detail is not None and ao is not None:
-        inv = nt.nodes.new("ShaderNodeMix")
-        inv.data_type, inv.blend_type = "RGBA", "MULTIPLY"
-        inv.inputs["Factor"].default_value = 1.0
-        inv.label = "AO x detail"
-        nt.links.new(detail, inv.inputs[6])
-        nt.links.new(ao, inv.inputs[7])
-        blend = inv.outputs[2]
-        report["wired"].append("detail x AO")
+    if detail is not None and cavity is not None:
+        # `%303 = 1 - %300`, `%304 = %303 * %184` -- STRAIGHT FROM THE IR, no fudge.
+        #
+        # This replaces an empirical `AO * card` that stood here from 2026-08-01 to 2026-08-02.
+        # That term was adopted because `(1 - AO) * card` rendered far too dark and `AO * card`
+        # happened to land near the game on the one region checked. Both were wrong, and the
+        # measurement that endorsed `AO * card` was itself broken: it compared a box MEDIAN over
+        # our fan against a POINT sample of the game's brightest fan tip.
+        #
+        # Re-measured 2026-08-02 against a side-on GBuffer albedo capture matching our ortho
+        # camera, region for region, median against median:
+        #
+        #     region     AO * card (old)      1 - %300 == card (this)
+        #     fan        0.69 / 0.67 / 0.65   0.97 / 0.96 / 0.93
+        #     coverts    0.75 / 0.80 / 0.79   1.00 / 1.06 / 1.05
+        #
+        # `%300` is `pFeathers_Aniso_PackedTexture.R`, which is identically 0.000 on this species,
+        # so this evaluates to the card untouched -- but it is written as the IR states it, so a
+        # species that ships a non-zero channel gets the right answer instead of a silent 1.0.
+        inv = nt.nodes.new("ShaderNodeInvert")
+        inv.label = "1 - %300"
+        inv.inputs["Fac"].default_value = 1.0
+        nt.links.new(cavity, inv.inputs["Color"])
+        mul = nt.nodes.new("ShaderNodeMix")
+        mul.data_type, mul.blend_type = "RGBA", "MULTIPLY"
+        mul.inputs["Factor"].default_value = 1.0
+        mul.label = "(1 - %300) x card"
+        nt.links.new(detail, mul.inputs[6])
+        nt.links.new(inv.outputs["Color"], mul.inputs[7])
+        blend = mul.outputs[2]
+        report["wired"].append("(1 - aniso.R) x card")
+    if extras.get("AO") is not None:
+        # The AO channel is NOT part of the albedo composite -- that was the old empirical term.
+        # Declared here so its absence from the chain is deliberate and visible, not a silent drop.
+        report["unused"].append(
+            ("pFeathers_AOHeightOpacityTransmission_PackedTexture.R",
+             "not in the albedo path; the card is gated by 1 - aniso.R, per the IR"))
     chain = base
     if base is not None and blend is not None:
         ov = nt.nodes.new("ShaderNodeMix")
@@ -706,12 +753,14 @@ def selftest():
     # the deliberate omission must be DECLARED, not merely absent
     assert sorted(s for s, _ in report["unused"]) == [
         "pFeathers_AOHeightOpacityTransmission_PackedTexture.A",
-        "pFeathers_Aniso_PackedTexture"], report["unused"]
+        "pFeathers_AOHeightOpacityTransmission_PackedTexture.R",
+        "pFeathers_Aniso_PackedTexture.G"], report["unused"]
     wired = " ".join(report["wired"])
-    # NOTE "detail x AO", not "(1 - AO)": a knowing deviation from the IR, measured against the
-    # game's GBuffer albedo. See the table in the build function before changing this back.
+    # The card is gated by `1 - aniso.R` (%300), per the IR -- NOT by the AO channel. The old
+    # `AO * card` term was empirical and was endorsed by a broken measurement; see the table in
+    # the build function, and do not put AO back without re-measuring against a side-on capture.
     for expect in ("Metallic", "Roughness", "Specular", "Alpha",
-                   "detail x AO", "overlay(base, detail)", "pFeathers_NormalTexture"):
+                   "(1 - aniso.R) x card", "overlay(base, detail)", "pFeathers_NormalTexture"):
         assert expect in wired, f"{expect!r} was not wired. wired = {report['wired']}"
     # Transmission must NOT be wired: at weight 1 it turns the plumage into clear glass and the
     # graded albedo stops reaching the camera. This is the single defect that made every feathers

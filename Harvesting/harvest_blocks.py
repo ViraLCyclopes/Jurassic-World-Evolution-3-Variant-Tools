@@ -27,7 +27,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 import _hpaths  # noqa: E402  (puts the package and its vendor/ folder on sys.path)
 import material_block as mb  # noqa: E402
 
-CAPS = os.path.join(os.environ.get("TEMP", ""), "RenderDoc")
+import jwe3_config  # noqa: E402  (_hpaths above put the package on sys.path)
+
+# The capture folder is a SETTING, not a constant -- see jwe3_config.detect_captures_dir. As a
+# hardcoded %TEMP%\RenderDoc it worked on one machine and left anyone whose RenderDoc writes
+# elsewhere with "no matching .rdc captures" and nothing they could change. Detection still returns
+# the historical path, so existing setups are unaffected.
+# `audit_captures.py` takes its CAPS from here, so both agree by construction.
+CAPS = jwe3_config.get("captures_dir") or os.path.join(os.environ.get("TEMP", ""), "RenderDoc")
 # Harvested rows go straight into YOUR coefficient table, which the editor layers over the shipped
 # one -- so a capture shows up in the preview immediately, and survives updating the tool.
 OUT = _hpaths.coeff_out()
@@ -89,11 +96,23 @@ def variant_table():
     # variant a brightness/saturation quadruple that collides with none of the shipped ones, which
     # is the only thing that makes the swept blocks identifiable -- without it all 36 share one
     # fingerprint and every match is ambiguous across all 36 seeds.
-    sweep = os.path.join(HERE, "seedsweep_seeds.json")
+    #
+    # ASK _hpaths, DO NOT REBUILD THE PATH. `gen_seedsweep_v2` writes this table to
+    # `_hpaths.seed_table()` -- the per-user work folder -- because run-time state must survive
+    # reinstalling the tool. This read used to be `os.path.join(HERE, ...)`, the source folder,
+    # which the generator never writes to, so the file was never found and the sweep contributed
+    # NOTHING. That is silent by construction: `variant_table` just carries on with the shipped
+    # rows, every swept animal lands in NO_FINGER, and the run reports "0 confirmed blocks" as
+    # though the capture were empty. Measured on JWE3_2026.08.02_00.27_frame26691.rdc: 0 blocks
+    # before, 1 after (seed 40, troodon) -- the capture was fine the whole time.
+    sweep = _hpaths.seed_table()
     if os.path.isfile(sweep):
         extra = json.load(open(sweep))
         rows = rows + extra
-        print(f"  + {len(extra)} seed-sweep rows from {os.path.basename(sweep)}")
+        print(f"  + {len(extra)} seed-sweep rows from {sweep}")
+    else:
+        # Say so. A sweep that silently fails to load costs a whole capture session.
+        print(f"  (no seed-sweep table at {sweep} -- swept variants will NOT be identifiable)")
     tab = {}
     for r in rows:
         try:

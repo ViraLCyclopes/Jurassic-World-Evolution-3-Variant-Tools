@@ -699,6 +699,42 @@ def _import_part_variant(fgm_path, model, part, slot_index):
     return True, msg
 
 
+def _remirror_derived(block, species_dir):
+    """Re-grade fur_shell/fur_fin after the body's layer stack was rebuilt. Returns (done, failed).
+
+    WHY THIS IS NOT OPTIONAL. `fur_shell` and `fur_fin` do not own a layer stack: `mirror_layer_chain`
+    fills them with COPIES of the body's per-layer group nodes. Rebuilding the body replaces those
+    datablocks, so every `JWE3_Mirror_*` node in the two derived materials is left with
+    `node_tree = None`.
+
+    A group node with no node_tree has NO SOCKETS, so the chain through it is severed -- and these
+    are the two surfaces that OCCLUDE the body almost completely (see `apply_derived_grade`). The
+    animal then renders from raw base diffuse and reads as a colour-model bug. Measured live: an
+    `import_variant` of a body FGM left 9 dead mirror groups on each of the two materials.
+
+    `variant_parts.apply_variant_all` has always re-mirrored, and the docstrings say to run it after
+    any body rebuild -- but nothing enforced that, and the failure is silent. This closes it at the
+    source, so importing a body variant is self-consistent on its own.
+    """
+    import blender_parts
+    import variant_parts
+
+    done, failed = [], []
+    for obj in blender_parts.discover_parts().get("__derived__", []):
+        if not obj.data.materials or obj.data.materials[0] is None:
+            continue
+        mat = obj.data.materials[0]
+        tag = blender_parts.mesh_part_name(obj) or "derived"
+        try:
+            variant_parts.apply_derived_grade(mat, block, species_dir, tag, body_mat=_current_mat)
+            done.append(tag)
+        except ValueError as e:
+            # Never fatal: the body import itself succeeded, and a derived part with no material
+            # built yet is a normal state, not an error. Report it instead of hiding it.
+            failed.append("%s: %s" % (tag, e))
+    return done, failed
+
+
 def import_variant(fgm_path, object_name=None):
     """Load a loose variant .fgm and put it on a mesh, in one call. Returns (ok, message).
 
@@ -779,6 +815,11 @@ def import_variant(fgm_path, object_name=None):
             stem, model.seed, model.complexity,
             "" if block["coeffExact"] else "   (NO COEFFS - base grade only)")
 
+    # Rebuilding the body above orphaned the mirrored layer chains in fur_shell/fur_fin. Put them
+    # back before returning -- see _remirror_derived. Textures come from the same folder the masks
+    # did, which is the mesh's own import folder, so this needs nothing the caller has to supply.
+    remirrored, remirror_failed = _remirror_derived(block, mask_dir)
+
     # Publish it so an open editor window can follow this import (it polls "state").
     _last_import = {"path": fgm_path, "object": object_name, "species": model_species,
                     "sex": model_sex, "serial": _last_import["serial"] + 1}
@@ -787,9 +828,14 @@ def import_variant(fgm_path, object_name=None):
             "APPROXIMATE (seed not harvested: grade exact, gradient flat)"
     cross = "" if (fgm_species or "").lower() == (model_species or "").lower() else \
             "  [%s colours on the %s model]" % (fgm_species, model_species)
-    return True, "%s seed %d/%d -> %s (%s textures) -- gradient %s%s" % (
+    derived = ""
+    if remirrored:
+        derived = "  [re-mirrored %s]" % ", ".join(remirrored)
+    if remirror_failed:
+        derived += "  [derived parts NOT regraded: %s]" % "; ".join(remirror_failed)
+    return True, "%s seed %d/%d -> %s (%s textures) -- gradient %s%s%s" % (
         os.path.basename(fgm_path), model.seed, model.complexity, object_name,
-        model_species, exact, cross)
+        model_species, exact, cross, derived)
 
 
 def _cmd_objects(cmd):
