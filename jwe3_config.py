@@ -41,6 +41,7 @@ ENV = {
     "cobra_tools": "JWE3_COBRA_TOOLS",
     "swatch_dir": "JWE3_SWATCH_DIR",
     "fur_library": "JWE3_FUR_LIBRARY",
+    "captures_dir": "JWE3_CAPTURES_DIR",
 }
 KEYS = tuple(ENV)
 
@@ -245,11 +246,27 @@ def detect_fur_library():
     return None
 
 
+def detect_captures_dir():
+    """RenderDoc's default capture folder, %TEMP%\\RenderDoc.
+
+    This was a module constant in `Harvesting/harvest_blocks.py`, which is fine on one machine and
+    wrong for a shipped tool: a user who has pointed RenderDoc elsewhere got "no capture folder at
+    ..." with nothing they could change. Keeping the historical path as the DETECTED value means
+    existing setups keep working with no migration.
+    """
+    tmp = os.environ.get("TEMP") or os.environ.get("TMP")
+    if not tmp:
+        return None
+    d = os.path.join(tmp, "RenderDoc")
+    return os.path.abspath(d) if os.path.isdir(d) else None
+
+
 DETECTORS = {
     "game_dir": lambda: (detect_game_dirs() or [None])[0],
     "cobra_tools": detect_cobra_tools,
     "swatch_dir": detect_swatch_dir,
     "fur_library": detect_fur_library,
+    "captures_dir": detect_captures_dir,
 }
 
 
@@ -375,8 +392,26 @@ def selftest():
         assert source("game_dir") == "config"
         write(game_dir=None)
 
-        assert set(KEYS) == {"game_dir", "cobra_tools", "swatch_dir", "fur_library"}, KEYS
+        assert set(KEYS) == {"game_dir", "cobra_tools", "swatch_dir", "fur_library",
+                             "captures_dir"}, KEYS
         assert set(MULTI) <= set(KEYS) and set(MULTI) == {"swatch_dir", "fur_library"}, MULTI
+
+        # captures_dir resolves like every other setting: env -> config -> detection.
+        # It used to be a module constant in harvest_blocks.py (%TEMP%\RenderDoc), which is fine on
+        # one machine and wrong for a shipped tool: a user whose RenderDoc writes elsewhere got
+        # "no capture folder at ..." with nothing to change.
+        caps = os.path.join(tempfile.mkdtemp(), "MyCaptures")
+        os.makedirs(caps)
+        old_caps = os.environ.get(ENV["captures_dir"])
+        try:
+            os.environ[ENV["captures_dir"]] = caps
+            assert get("captures_dir") == os.path.abspath(caps), get("captures_dir")
+            assert source("captures_dir") == "environment", source("captures_dir")
+        finally:
+            if old_caps is None:
+                os.environ.pop(ENV["captures_dir"], None)
+            else:
+                os.environ[ENV["captures_dir"]] = old_caps
 
         # --- MULTI settings: several folders, os.pathsep-separated, in order, existing only.
         #     `get` must keep returning ONE folder so every existing caller is unaffected.

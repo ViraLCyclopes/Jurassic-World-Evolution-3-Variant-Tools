@@ -11,7 +11,8 @@ DISCLAIMER: THIS PROJECT WAS MADE WITH THE HELP OF CLAUDE CODE. THIS IS TO GIVE 
 | Put a variant on a model in Blender | Install `VariantEditor.zip`, then *File ▸ Import ▸ JWE3 Variant (.fgm)* |
 | Tune a variant with live sliders | Extract the repo, `python variant_editor.py` |
 | Point it at my game / Swatch Library | `python setup_gui.py` (usually auto-detected) |
-| Capture new palette seeds | [Harvesting/README.md](Harvesting/README.md) |
+| Capture new palette seeds | `python Harvesting/harvest_gui.py` — guided, with backups and one-click restore |
+| Understand the whole workflow | **[docs/GUIDE.md](docs/GUIDE.md)** — setup, Blender, judging colour, harvesting, troubleshooting |
 
 Requires **Blender 4.5 LTS** + **cobra-tools**; the desktop editor also needs **Python 3.11** and
 **PyQt5** (`pip install PyQt5`).
@@ -47,6 +48,21 @@ belongs to the same species), and switching variants replaces the previous one c
 **B. Tune a variant with live sliders** — the standalone `variant_editor.py` app, below.
 
 Both come from the same add-on install, and both build the *real* material.
+
+## Harvesting palette seeds
+
+`python Harvesting/harvest_gui.py` walks a whole capture pass: prepare a sweep → spawn and capture
+→ harvest → restore. It shows your seed coverage, and whenever your game files are modified it
+shows a red banner with **Restore** one click away, in every state. Any step is reachable directly
+from the action bar; disabled buttons say why in their tooltip.
+
+**It modifies game OVL files** when you install a sweep. Originals are backed up first, restore is
+always available, and it refuses outright to install over an already-modified game (that would back
+up the modified files as if they were the originals and destroy the restore path) or while the game
+is running. Steam ▸ Properties ▸ Installed Files ▸ Verify integrity is the fallback.
+
+Harvests are shareable — export yours, merge someone else's. Pooling captures is much the fastest
+way to finish the remaining seeds.
 
 **They stay in sync.** With the editor open, importing a variant in Blender pulls that variant's
 settings into the editor window (and adopts the mesh it targeted), so you can import in Blender and

@@ -27,7 +27,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 import _hpaths  # noqa: E402  (puts the package and its vendor/ folder on sys.path)
 import material_block as mb  # noqa: E402
 
-CAPS = os.path.join(os.environ.get("TEMP", ""), "RenderDoc")
+import jwe3_config  # noqa: E402  (_hpaths above put the package on sys.path)
+
+# The capture folder is a SETTING, not a constant -- see jwe3_config.detect_captures_dir. As a
+# hardcoded %TEMP%\RenderDoc it worked on one machine and left anyone whose RenderDoc writes
+# elsewhere with "no matching .rdc captures" and nothing they could change. Detection still returns
+# the historical path, so existing setups are unaffected.
+# `audit_captures.py` takes its CAPS from here, so both agree by construction.
+CAPS = jwe3_config.get("captures_dir") or os.path.join(os.environ.get("TEMP", ""), "RenderDoc")
 # Harvested rows go straight into YOUR coefficient table, which the editor layers over the shipped
 # one -- so a capture shows up in the preview immediately, and survives updating the tool.
 OUT = _hpaths.coeff_out()

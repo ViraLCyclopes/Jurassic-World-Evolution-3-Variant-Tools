@@ -31,6 +31,11 @@ seedsweep_seeds.json
 SEEDSWEEP_SPAWN_LIST.txt
 Backup_SeedSweep*/
 
+# Design specs and implementation plans are OUR process notes, not documentation for anyone using
+# this tool, and they are not for the public repo. They live outside the package, in
+# `../docs/superpowers/`. docs/ itself still ships -- GUIDE.md and SLIDERS.md are user-facing.
+/docs/superpowers/
+
 # Editors
 .vscode/
 .idea/
