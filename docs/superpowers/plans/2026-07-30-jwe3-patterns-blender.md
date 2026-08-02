@@ -24,16 +24,37 @@
 - **Never write into the game install.** Loose extracted `.fgm` files only.
 - Source species files from `…\Personal Mods\JWE3\Images and Models\Dinosaurs\`, **not** `Variant Research\Textures\` — the latter is a partial dump that misled the design phase twice.
 
-## Deviation from the spec
+## Deviations from the spec
 
-The spec listed `pattern_reader.py` and `pattern_io.py` as separate modules, and their
-responsibilities overlapped (both read a pattern FGM). **`pattern_reader` is dropped.** Its two real
-jobs are absorbed:
+**1. `pattern_reader.py` is dropped.** The spec listed it alongside `pattern_io.py` and their
+responsibilities overlapped (both read a pattern FGM). Its two real jobs are absorbed:
 
 - reading the slot manifest and pattern-set maps → `part_manifest.py` (which already parses the same file)
 - reading a pattern FGM's 67 attributes → `pattern_io.load_pattern_fgm()`
 
-No scope changes; one fewer module and no duplicated FGM parsing.
+**2. Multi-part VARIANT import comes before patterns** (Task 7, new). A pattern overlays a *graded*
+material, so if the variant cannot reach the `feathers` or `quills` mesh, a pattern on that part has
+nothing to sit on. The existing importer is single-mesh — `_build_on_object(object_name, ...)` takes
+one object and has no concept of parts. This also delivers something visibly useful earlier: a
+correctly coloured Pyroraptor *with feathers*, before any pattern work lands. The old "Task 8:
+feathers material" is folded into it, since a feathers variant and a feathers pattern need the same
+material built first.
+
+**3. A pattern must be importable independently of a variant**, matching the game, where the two are
+separate cosmetic axes with separate `GeneMod_Cosmetic_*` unlocks. Consequence, and it is a real
+trap: if both node groups splice "just before the Material Output", then the *order of application*
+silently determines the chain order. Each group therefore declares a fixed `CHAIN_POS` and
+`splice_at` inserts by position, not at the end. Task 8 asserts variant→pattern and pattern→variant
+produce identical trees.
+
+**4. Feathers and quills are ONE tier, not two.** Verified on disk: `psittacosaurus_female_quills.fgm`
+is `DinosaurFeathers_ClipDoubleSided`, the same shader as `pyroraptor_feathers.fgm`, and quills have
+their own `..._variant_01_NN_quills.fgm` (`DinosaurLayered_Variant`, 144 attributes) paired 1:1 with
+the body, exactly like `feathersvariant`. So one code path covers both; only the part token differs.
+
+Psittacosaurus is also the **better** `resolve_texture` test: its quills FGM names three shared
+library textures (`feathers.*`) and three local overrides (`psittacosaurus_female_quills.*`), so it
+exercises both branches in one material where Pyroraptor exercises only one.
 
 ## File Structure
 
@@ -44,9 +65,28 @@ No scope changes; one fewer module and no duplicated FGM parsing.
 | `pattern_io.py` | **new, top level.** `load_pattern_fgm` / `save_pattern_fgm` via cobra-tools `FgmHeader`. Mirrors `fgm_io.py`. |
 | `vendor/part_manifest.py` | **new.** Parse `.dinosaurmaterialpatterns` / `.dinosaurmaterialvariants`, de-interleave by part, discover mesh parts, resolve the shared `DinosaurFur/` library by `<dependency_name>`. The only part-aware module. |
 | `vendor/export_pattern.py` | **new.** JSON bridge, keyed by part. Mirrors `export_palette.py`. |
-| `vendor/blender_pattern_nodes.py` | **new.** Build + splice the `JWE3_Pattern` group. Mirrors `blender_palette_nodes.py`. |
-| `vendor/blender_feather_nodes.py` | **new.** Build the feathers material. Mirrors `blender_layer_nodes.py`. |
+| `vendor/blender_feather_nodes.py` | **new.** Build the feathers/quills material (one tier, `DinosaurFeathers_*`). Mirrors `blender_layer_nodes.py`. |
+| `vendor/blender_parts.py` | **new.** `splice_at` / `unsplice` by `CHAIN_POS`, and multi-part variant application. The one place chain order is decided. |
+| `vendor/blender_pattern_nodes.py` | **new.** Build the `JWE3_Pattern` group; splices via `blender_parts.splice_at`. Mirrors `blender_palette_nodes.py`. |
+| `blender_listener.py` | **modify.** Multi-part variant import; a new File ▸ Import ▸ JWE3 Pattern entry that works with or without a variant. |
 | `…/Shader Research/PATTERNS.md` | **modify** in Task 5 with the composite finding. |
+
+## Task order
+
+1–4 are pure data and unchanged. 5 is independent research. **7 is the new multi-part variant task**;
+8 and 9 depend on it.
+
+| # | task | needs |
+|---|---|---|
+| 1 | `pattern_model.py` | — |
+| 2 | `pattern_lut.py` | 1 |
+| 3 | `pattern_io.py` | 1 |
+| 4 | `vendor/part_manifest.py` | — |
+| 5 | shader IR read | — |
+| 6 | `vendor/export_pattern.py` | 2, 3 |
+| 7 | **feathers/quills material + multi-part variant import** | 4 |
+| 8 | `vendor/blender_pattern_nodes.py` + independent pattern import | 6, 7 |
+| 9 | visual validation | 8 |
 
 ---
 
@@ -717,7 +757,7 @@ def parse_manifest(path):
     if pool is None:
         raise ValueError(f"no entry pool in {path}")
 
-    entries = []                                  # (core, part) or None for a null
+    entries = []                        # (core, part, original_name) or None for a null
     for e in pool:
         if e.get("has_ptr") == "0":
             entries.append(None)
@@ -726,7 +766,9 @@ def parse_manifest(path):
         if name_el is None or not (name_el.text or "").strip():
             entries.append(None)
             continue
-        entries.append(split_part(name_el.text.strip()))
+        original = name_el.text.strip()
+        core, part = split_part(original)
+        entries.append((core, part, original))
 
     parts, order = [], {}
     for ent in entries:
@@ -743,22 +785,15 @@ def parse_manifest(path):
         if ent is None:
             slots.append({p: None for p in parts})
             continue
-        core, part = ent
+        core, part, original = ent
         if core not in by_core:
             by_core[core] = {p: None for p in parts}
             slots.append(by_core[core])
-        by_core[core][part] = _rebuild(core, part, path)
+        # store what the manifest ACTUALLY said -- never reconstruct it from (core, part),
+        # which cannot round-trip an infix and a suffix through one rule
+        by_core[core][part] = original
 
     return Manifest(len(entries), parts, slots)
-
-
-def _rebuild(core, part, path):
-    """Recover the original entry name from (core, part). Kept beside split_part so the two
-    cannot drift; the manifest is the source of truth, so we store what it actually said."""
-    return _ORIGINAL[(core, part, path)]
-
-
-_ORIGINAL = {}
 
 
 def resolve_texture(dep_name, local_dir, library_dir):
@@ -777,14 +812,7 @@ def resolve_texture(dep_name, local_dir, library_dir):
     return None
 ```
 
-> **Note for the implementer:** the `_rebuild` / `_ORIGINAL` pair above is a deliberate placeholder
-> shape that will not work — resolve it by having `parse_manifest` carry the original name through
-> instead of reconstructing it. Change `entries` to hold `(core, part, original_name)` and assign
-> `by_core[core][part] = original_name` directly, then delete `_rebuild` and `_ORIGINAL`. The
-> selftest asserts exact names (`"Pyroraptor_FeathersPattern_01_03"`), so it will catch any
-> reconstruction that does not round-trip.
-
-- [ ] **Step 4: Apply that fix and run the selftest**
+- [ ] **Step 4: Run the selftest**
 
 ```bash
 set JWE3_DINO_ROOT=D:\JWE2 Stuff\Personal Mods\JWE3\Images and Models\Dinosaurs
@@ -967,20 +995,37 @@ git commit -m "feat: export_pattern, JSON bridge for the Blender side"
 
 ---
 
-### Task 7: `vendor/blender_pattern_nodes.py` — the spliceable overlay
+### Task 8: `vendor/blender_pattern_nodes.py` — the spliceable overlay, independent of any variant
+
+> Numbered 8; it appears here before Task 7 in the file. See the *Task order* table — Task 7 (the
+> multi-part variant work) must land first, because a pattern overlays a graded material.
 
 Runs inside Blender. Drive it through the blender-bridge MCP (`blender_exec`) rather than by hand.
 
 **Files:**
 - Create: `vendor/blender_pattern_nodes.py`
+- Create: `vendor/blender_parts.py` — `CHAIN_POS`, `splice_at`, `unsplice`
+- Modify: `blender_listener.py` — a File ▸ Import ▸ JWE3 Pattern entry
 
 **Interfaces:**
-- Consumes: the JSON from `export_pattern.export`.
+- Consumes: the JSON from `export_pattern.export`; `blender_parts.splice_at`.
 - Produces:
   - `lut_image(name, lut) -> bpy.types.Image` — a generated 32×3 float image, row 0 colour, row 1 emissive, row 2 opacity, `colorspace_settings.name = 'Non-Color'`.
   - `build_group(name, lut) -> bpy.types.ShaderNodeTree` — the `JWE3_Pattern` group. Inputs `Albedo` (colour), `Index` (float 0..1). Output `Albedo`.
-  - `apply_pattern(mat, data) -> bpy.types.Node` — unsplice any existing group, then splice a fresh one between the grade and the output. Returns the group node.
-  - `unsplice(mat) -> bool` — remove the group and relink; `True` if one was present.
+  - `apply_pattern(mat, data) -> bpy.types.Node` — unsplice any existing group, then splice a fresh one at its `CHAIN_POS`. Returns the group node.
+  - In `blender_parts`: `CHAIN_POS = {"JWE3_Grade": 10, "JWE3_Pattern": 20}`; `splice_at(mat, node, pos)`; `unsplice(mat, prefix) -> bool`.
+
+**A pattern must apply with no variant present**, matching the game's separate cosmetic axes. Two
+requirements follow:
+
+1. `apply_pattern` must work on a plain cobra-tools material that has no JWE3 grade node.
+2. **Order of application must not change the result.** If both groups splice "just before the
+   Material Output", applying the variant second puts the grade *after* the pattern and applying it
+   first puts it *before*. `splice_at` inserts by `CHAIN_POS`, never at the end, and Step 1 asserts
+   that variant→pattern and pattern→variant yield identical trees.
+
+Which position is correct is Task 5's open question 1. Until that is answered `CHAIN_POS` encodes an
+assumption — but a **consistent** one, which is what matters here.
 
 **Row addressing.** The image is 32 wide × 3 tall. Row `i` is sampled at `v = 1 - (i + 0.5)/3`
 because Blender's V runs from the bottom while the array's row 0 is the top. Getting this wrong is
@@ -1115,14 +1160,30 @@ git commit -m "feat: JWE3_Pattern node group, spliced over the palette grade"
 
 ---
 
-### Task 8: `vendor/blender_feather_nodes.py` — the feathers material
+### Task 7: feathers/quills material + multi-part variant import
+
+> Numbered 7; it appears here after Task 8 in the file. It is the **prerequisite** for Task 8.
 
 **Files:**
 - Create: `vendor/blender_feather_nodes.py`
+- Create: `vendor/blender_parts.py` (shared with Task 8 — whichever lands first creates it)
+- Modify: `blender_listener.py` — `_build_on_object` becomes part-aware
 
 **Interfaces:**
-- Consumes: `part_manifest.resolve_texture`, `blender_pattern_nodes.apply_pattern`.
-- Produces: `build_feathers(obj, fgm_path, library_dir) -> bpy.types.Material`.
+- Consumes: `part_manifest.parse_manifest`, `part_manifest.resolve_texture`, the existing `blender_palette_nodes` grade.
+- Produces:
+  - `build_feathers(obj, fgm_path, library_dir) -> bpy.types.Material` — covers **feathers *and* quills**; they are one tier.
+  - `blender_parts.discover_parts(species_dir) -> {part: obj}` — match mesh objects to parts by material name.
+  - `blender_parts.apply_variant_all(slots_row, objects)` — body variant onto the body mesh, `feathersvariant`/`_quills` variant onto its own mesh, driven by the de-interleaved manifest row.
+
+**Feathers and quills are one code path.** `psittacosaurus_female_quills.fgm` is
+`DinosaurFeathers_ClipDoubleSided`, identical to `pyroraptor_feathers.fgm`, and quills carry their own
+`..._variant_01_NN_quills.fgm` (144 attributes) paired 1:1 with the body. Only the part token differs.
+
+**Test resolution on Psittacosaurus, not Pyroraptor.** Its quills FGM names three shared-library
+textures (`feathers.*`) and three local overrides (`psittacosaurus_female_quills.*`), exercising both
+branches of `resolve_texture` in one material. Pyroraptor exercises only the library branch, so it
+would pass even if local-first precedence were broken.
 
 **Adopt cobra-tools' channel mapping** — it agrees with the textures' own names, which is
 corroboration rather than a guess:

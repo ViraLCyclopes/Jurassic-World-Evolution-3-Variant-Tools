@@ -1,0 +1,113 @@
+10783 distinct variant fingerprints; scanning 29 captures
+
+=== JWE3_2026.07.20_12.12_frame7120.rdc (1.07 GB) ===
+  5 confirmed blocks, 4 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.20_12.20_frame10849.rdc (1.07 GB) ===
+  1 confirmed blocks, 5 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.20_12.20_frame14499.rdc (1.08 GB) ===
+  8 confirmed blocks, 12 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.24_20.54_frame1520310.rdc (1.20 GB) ===
+  35 confirmed blocks, 46 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.24_20.54_frame1580882.rdc (1.22 GB) ===
+  40 confirmed blocks, 70 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.24_20.54_frame1664110.rdc (1.05 GB) ===
+  47 confirmed blocks, 80 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.24_20.54_frame1696031.rdc (1.05 GB) ===
+  ?? AMBIGUOUS at +1029287120: [(0, 0), (54, 1)] (concavenator_juvenile_variant_01_09.fgm, concavenator_male_variant_01_09.fgm, concavenator_variant_01_09.fgm) -- skipped
+  56 confirmed blocks, 1 ambiguous skipped, 101 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.24_20.54_frame1730329.rdc (1.21 GB) ===
+  39 confirmed blocks, 106 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.24_20.54_frame1755446.rdc (1.16 GB) ===
+  3 confirmed blocks, 107 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.24_20.54_frame39981.rdc (1.14 GB) ===
+  44 confirmed blocks, 109 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.24_23.50_frame7600618.rdc (1.17 GB) ===
+  2 confirmed blocks, 110 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.24_23.50_frame7987135.rdc (1.18 GB) ===
+  4 confirmed blocks, 110 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.25_14.01_frame107553.rdc (1.07 GB) ===
+  6 confirmed blocks, 111 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.25_14.01_frame38550.rdc (1.05 GB) ===
+  2 confirmed blocks, 111 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.25_15.21_frame115849.rdc (1.08 GB) ===
+  2 confirmed blocks, 112 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.25_15.21_frame177780.rdc (1.24 GB) ===
+  3 confirmed blocks, 114 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.25_15.21_frame183978.rdc (1.27 GB) ===
+  1 confirmed blocks, 115 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.25_15.21_frame185033.rdc (1.25 GB) ===
+  6 confirmed blocks, 117 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.25_16.04_frame37136.rdc (1.09 GB) ===
+  6 confirmed blocks, 117 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.25_16.04_frame37476.rdc (1.11 GB) ===
+  6 confirmed blocks, 117 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.25_16.04_frame37680.rdc (1.11 GB) ===
+  1 confirmed blocks, 117 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.31_01.35_frame19380.rdc (1.32 GB) ===
+  8 confirmed blocks, 121 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.31_01.35_frame20933.rdc (1.36 GB) ===
+  3 confirmed blocks, 123 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.31_01.35_frame432094.rdc (1.34 GB) ===
+  8 confirmed blocks, 123 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.31_01.35_frame433907.rdc (1.40 GB) ===
+  7 confirmed blocks, 124 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.31_01.35_frame434579.rdc (1.31 GB) ===
+  8 confirmed blocks, 124 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.31_01.35_frame435159.rdc (1.34 GB) ===
+  3 confirmed blocks, 124 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.31_01.35_frame496668.rdc (1.40 GB) ===
+  10 confirmed blocks, 124 distinct (seed,complexity) so far
+
+=== JWE3_2026.07.31_01.35_frame74161.rdc (1.40 GB) ===
+  7 confirmed blocks, 124 distinct (seed,complexity) so far
+
+========================================================================
+124 distinct (seed, complexity) pairs (124 new this run)  ->  C:\Users\shado\AppData\Local\JWE3VariantTools\gradient_coefficients.json
+(the shipped variants use 720 pairs in total)
+  seed   3 cplx 3  off(104, 239, 396) amp(173, 222, 128) freq(204, 51, 204) pha(397, 395, 0)
+  seed   5 cplx 1  off(304, 255, 402) amp(254, 181, 144) freq(102, 102, 51) pha(434, 438, 495)
+  seed   5 cplx 2  off(304, 255, 402) amp(254, 181, 144) freq(153, 153, 51) pha(434, 438, 495)
+  seed   5 cplx 5  off(304, 255, 402) amp(254, 181, 144) freq(307, 307, 51) pha(434, 438, 495)
+  seed   6 cplx 1  off(114, 409, 124) amp(170, 131, 227) freq(102, 51, 51) pha(159, 9, 504)
+  seed   6 cplx 4  off(114, 409, 124) amp(170, 131, 227) freq(256, 51, 51) pha(159, 9, 504)
+  seed   7 cplx 2  off(262, 140, 134) amp(255, 130, 234) freq(51, 51, 51) pha(43, 369, 121)
+  seed   9 cplx 10  off(104, 256, 408) amp(181, 211, 167) freq(51, 511, 511) pha(256, 192, 482)
+  seed  10 cplx 0  off(256, 360, 341) amp(148, 129, 139) freq(51, 51, 51) pha(411, 381, 509)
+  seed  11 cplx 1  off(305, 348, 133) amp(161, 252, 239) freq(51, 51, 102) pha(446, 19, 205)
+  seed  13 cplx 6  off(262, 250, 405) amp(222, 242, 230) freq(358, 51, 358) pha(18, 239, 384)
+  seed  13 cplx 10  off(262, 250, 405) amp(222, 242, 230) freq(511, 51, 511) pha(18, 239, 384)
+  seed  14 cplx 1  off(239, 239, 231) amp(185, 128, 239) freq(102, 102, 102) pha(448, 2, 511)
+  seed  17 cplx 1  off(409, 389, 393) amp(250, 201, 240) freq(51, 102, 102) pha(2, 397, 2)
+  seed  18 cplx 2  off(140, 396, 242) amp(252, 128, 144) freq(51, 51, 153) pha(510, 423, 189)
+  seed  20 cplx 1  off(256, 251, 258) amp(135, 254, 128) freq(102, 51, 51) pha(41, 159, 246)
+  seed  21 cplx 10  off(360, 402, 237) amp(138, 237, 255) freq(511, 51, 51) pha(0, 43, 12)
+  seed  22 cplx 1  off(348, 124, 377) amp(226, 130, 180) freq(102, 51, 51) pha(132, 446, 17)
+  seed  24 cplx 1  off(250, 182, 256) amp(222, 213, 128) freq(51, 102, 102) pha(26, 411, 28)
+  seed  25 cplx 2  off(239, 408, 405) amp(147, 176, 161) freq(153, 51, 153) pha(321, 446, 4)

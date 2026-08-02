@@ -62,6 +62,12 @@ ATTRIBUTE_MAP = {
     "keyColour": "u_globalKeyColour",
     "keyThreshold": "u_globalKeyThreshold",
     "keyTolerance": "u_globalKeyTolerance",
+    # Bit 16 of the GPU block's word 2, and it VARIES BY VARIANT -- Pyroraptor v00/v02/v04 carry 1
+    # but v09 carries 0. `preview_bridge` used to hardcode True for everything on the strength of
+    # "set in every clean capture so far"; that was true of the captures to hand and wrong in
+    # general. It decides which SIDE of the key mask is repainted, so getting it backwards swaps
+    # which parts of the animal keep their base grade.
+    "keyType": "u_globalKeyType",
     "brightnessBase": "u_globalColourBrightnessBase",
     "brightnessPalette": "u_globalColourBrightnessPalette",
     "saturationBase": "u_globalColourSaturationBase",
@@ -73,8 +79,25 @@ ATTRIBUTE_MAP = {
     "paletteStrength": "u_instancePaletteStrength",
 }
 
-# Layer colour weight attributes (n=1..16)
+# Per-layer arrays, all n=1..16, all carried by the VARIANT fgm.
+#
+# Saturation and contrast were skipped for a long time on the belief that they "live in the layer
+# FGMs". They do not -- they are here, and they are not all 1.0 (Pyroraptor v02 contrast:
+# [0.0, 1.61, 1.0, 0.89, 0.69, 1.0, 0.18, 0.33, ...]). Ignoring them flattens the layer stack.
 LAYER_COLOUR_WEIGHT_PREFIX = "u_globalColourWeight"
+LAYER_SATURATION_PREFIX = "u_baseColourSaturation"
+LAYER_CONTRAST_PREFIX = "u_baseColourContrast"
+N_LAYERS = 16
+
+# An RGB triple on the variant, unread until now. Pyroraptor v02: [1.0, 0.820, 0.545] on the body,
+# neutral [1.0, 1.0, 1.0] on the feathers.
+#
+# WHERE IT APPLIES IS UNKNOWN. Multiplying the whole graded body albedo by it was tried and is
+# WRONG -- it turns the scaly skin bright tan when the game shows dark brown/grey there, and the
+# game's fur reads as dark green spots rather than the warm cast the value alone suggests. So it is
+# read, round-tripped and exposed for editing, but NOT yet wired into the preview. Settle it by
+# reading DinosaurFur_Vanilla_BaseLayered's IR, not by guessing at the composite.
+FUR_TINT_ATTR = "u_furTint"
 
 # What makes an FGM a *variant* FGM. Observed in the Spino Female folder: variant FGMs use the
 # DinosaurLayered_Variant shader with 144 attributes; layer FGMs use DinosaurLayered_Layer with 13,
@@ -146,16 +169,22 @@ def load_fgm(path: str) -> VariantModel:
                 # All others are floats
                 setattr(model, model_field, float(value_list[0]))
 
-    # Map layer colour weights (u_globalColourWeight1..16)
-    layer_weights = [1.0] * 16
-    for n in range(1, 17):
-        attr_name = f"{LAYER_COLOUR_WEIGHT_PREFIX}{n}"
-        if attr_name in name_to_idx:
-            idx = name_to_idx[attr_name]
-            layer_weights[n - 1] = float(vals[idx].value[0])
-    model.layerColourWeights = layer_weights
+    # Per-layer arrays. Saturation and contrast used to be skipped here with the comment "they're
+    # in layer FGMs, not variant" -- which was simply untrue, and left every layer at contrast 1.0.
+    def _layer_array(prefix):
+        out = [1.0] * N_LAYERS
+        for n in range(1, N_LAYERS + 1):
+            attr_name = f"{prefix}{n}"
+            if attr_name in name_to_idx:
+                out[n - 1] = float(vals[name_to_idx[attr_name]].value[0])
+        return out
 
-    # layerSaturation and layerContrast remain at template defaults (they're in layer FGMs, not variant)
+    model.layerColourWeights = _layer_array(LAYER_COLOUR_WEIGHT_PREFIX)
+    model.layerSaturation = _layer_array(LAYER_SATURATION_PREFIX)
+    model.layerContrast = _layer_array(LAYER_CONTRAST_PREFIX)
+
+    if FUR_TINT_ATTR in name_to_idx:
+        model.furTint = list(vals[name_to_idx[FUR_TINT_ATTR]].value)
 
     return model
 
@@ -199,12 +228,19 @@ def save_fgm(model: VariantModel, path: str) -> None:
                 # All others are floats
                 vals[idx].value[0] = float(value)
 
-    # Update layer colour weights (u_globalColourWeight1..16)
-    for n in range(1, 17):
-        attr_name = f"{LAYER_COLOUR_WEIGHT_PREFIX}{n}"
-        if attr_name in name_to_idx:
-            idx = name_to_idx[attr_name]
-            vals[idx].value[0] = float(model.layerColourWeights[n - 1])
+    # Per-layer arrays. Must mirror load_fgm exactly or an edit-then-save silently rewrites
+    # saturation and contrast to the template's all-1.0 and destroys the variant.
+    for prefix, values in ((LAYER_COLOUR_WEIGHT_PREFIX, model.layerColourWeights),
+                           (LAYER_SATURATION_PREFIX, model.layerSaturation),
+                           (LAYER_CONTRAST_PREFIX, model.layerContrast)):
+        for n in range(1, N_LAYERS + 1):
+            attr_name = f"{prefix}{n}"
+            if attr_name in name_to_idx:
+                vals[name_to_idx[attr_name]].value[0] = float(values[n - 1])
+
+    if FUR_TINT_ATTR in name_to_idx:
+        for j, v in enumerate(model.furTint):
+            vals[name_to_idx[FUR_TINT_ATTR]].value[j] = float(v)
 
     # Save the FGM file
     with h.to_xml_file(h, path):

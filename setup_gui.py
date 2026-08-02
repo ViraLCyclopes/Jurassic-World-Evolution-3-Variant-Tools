@@ -38,7 +38,8 @@ ROWS = [
      "installed, so you rarely need to set this."),
     ("swatch_dir", "Swatch Library",
      "Where you unpacked SwatchLibrary.ovl's PNGs. Game data, so it is never shipped or "
-     "auto-extracted -- see SwatchLibrary/PLACE_SWATCH_LIBRARY_HERE.md."),
+     "auto-extracted, and it is NOT packaged with this software -- you must set it here. "
+     "Unpack SwatchLibrary.ovl with cobra-tools and point this at the folder of PNGs."),
 ]
 
 
