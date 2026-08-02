@@ -211,6 +211,15 @@ your OVLs were staged into.
    actually being drawn, so anything off-camera yields nothing.
 2. Press **F12** (or *Capture Frame Immediately* in the RenderDoc overlay).
 
+> **Prefer the species viewer over a park frame.** A park frame carries terrain, vegetation, crowds
+> and weather; the species viewer is close to an empty scene with one animal in it. The capture is
+> smaller, it opens far more reliably (park captures have crashed RenderDoc outright — see
+> Troubleshooting), and the dinosaur is the dominant draw instead of one of thousands of events.
+>
+> One park capture was found to contain **11 distinct variants of the same species**, so a single
+> good capture can be worth much more than the "one block per species" rule of thumb suggests.
+> Scan what you already have before spending more game time.
+
 Captures land in `%TEMP%\RenderDoc` and are 1–5 GB each, named like
 `JWE3_2026.07.20_12.20_frame14499.rdc`. That is exactly where the harvester looks — no configuration
 needed.
@@ -331,13 +340,35 @@ Open a variant using that seed in the editor. The badge must read **`gradient: e
 
 ### 4. Does the preview match the game?
 
-The honest test, and worth doing once:
+**Do not compare a Blender render against an ordinary in-game screenshot.** That was the advice
+here for a long time and it is not good enough: the screenshot is lit by sun, sky and shadows and
+passed through a tonemap, while the Blender render is flat albedo. The two differ by an unknown
+factor, and in practice that ambiguity was enough to hide a **3x** error for several sessions —
+long enough for a wrong conclusion to be written into the code with a selftest defending it.
 
-1. In game, photograph a dinosaur wearing the variant you're checking.
-2. Import the same `.fgm` in Blender (*File ▸ Import ▸ JWE3 Variant*) onto that species' model.
-3. Compare.
+**Compare albedo against albedo instead.** The `JWE3_ReShadeAddon` project puts the game's own
+GBuffer albedo — the surface colour with no lighting at all — on screen, so an ordinary screenshot
+becomes a measurement:
 
-For a harvested seed they should agree closely. For an unharvested one the overall colour matches
+1. Install the add-on (see its README; needs ReShade **with add-on support**).
+2. In game, press **Home**, enable **JWE3_Albedo**, set *Region* to Fullscreen, *Sky* to
+   "Black (raw target)", *Exposure* to **1.0**.
+3. Screenshot the dinosaur wearing the variant you are checking.
+4. Render the same `.fgm` in Blender to a **linear EXR**, not a PNG.
+
+Two things will ruin the comparison if you skip them:
+
+* **The GBuffer albedo is sRGB-encoded.** Decode it before comparing against a linear render.
+  (Sanity check: read a concrete path or sand — decoded they land at ~0.18 and ~0.29 linear, which
+  is right for those materials. Read as linear they come out brighter than white paper, which is
+  how you know you have skipped the decode.)
+* **Measure region for region.** Comparing a whole-model mean against one patch, or a body-covert
+  sample against a wing-fan sample, will manufacture an error that is not there. This has happened.
+
+Sky reads **exactly 0.0** in that view, so a non-zero pixel is geometry — a free mask for isolating
+the animal.
+
+For a harvested seed the two should agree closely. For an unharvested one the overall colour matches
 but the fine variegation is missing — that's the flat-gradient fallback, and it's the difference the
 badge is telling you about.
 
@@ -366,3 +397,24 @@ Get them on screen and capture again.
 
 **A seed still shows `approximate` after merging** — that seed genuinely isn't in the table.
 `python coeff_store.py --status` reports what's covered.
+
+**RenderDoc crashes when opening a capture** — the harvester does *not* need RenderDoc to open
+anything (it byte-scans the `.rdc` directly), so this only blocks you if you wanted to look at the
+frame yourself. Things that have actually mattered, in order:
+
+* **Capture and GUI must be the same RenderDoc version.** The `.rdc` records the version that wrote
+  it, near the start of the file.
+* **Try the species viewer instead of a park frame** — far simpler, and it has opened when park
+  captures would not.
+* In *Settings ▸ Replay*, **pin the replay GPU** if the machine has more than one adapter, and drop
+  the **optimisation level** to "No optimisation" — slower, more faithful, and it gets past some
+  crashes.
+* **Save the evidence before relaunching.** RenderDoc wipes `%TEMP%\RenderDoc\dumps\` and its log on
+  the next start, so copy the newest `RenderDoc_*.log` and the `dumps` folder somewhere first.
+  Without them there is nothing to diagnose from.
+
+**Palette JSON generated before August 2026 has the wrong `keyType`** — `export_palette.block` used
+to hardcode it to `True`, justified by a survey claiming `u_globalKeyType` was 0 everywhere. That
+premise was false, and the GPU bit is the **complement** of the FGM value. Regenerate any
+`PaletteJSON/*.json` produced before then; the harvested coefficients themselves are unaffected,
+since they are read from the capture rather than computed. See `docs/SLIDERS.md`.

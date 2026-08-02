@@ -132,6 +132,29 @@ def missing_seeds():
     return [s for s in range(TOTAL_SEEDS) if s not in have]
 
 
+def harvested_seeds(complexity=None, exact_only=False):
+    """Sorted seeds that `coefficients_for` can answer -- i.e. that render a real gradient.
+
+    `complexity` alone changes nothing, since a seed harvested at ANY complexity answers at every
+    complexity with `gradFreq` rebuilt. Pass `exact_only=True` with a complexity to narrow it to
+    seeds harvested AT that complexity, whose preview is measured rather than reconstructed.
+
+    Written for seed substitution: when a shipped FGM names an unharvested seed the preview falls
+    back to a flat gradient, and swapping in a seed from this list -- ideally an exact one at the
+    same complexity -- is what makes the palette visible.
+    """
+    if exact_only:
+        if complexity is None:
+            raise ValueError("exact_only needs a complexity; exactness is per (seed, complexity)")
+        out = set()
+        for key in rows():
+            s, _, c = key.partition("_")
+            if c.isdigit() and int(c) == int(complexity):
+                out.add(int(s))
+        return sorted(out)
+    return sorted(_by_seed())
+
+
 def merge(source, dest=None):
     """Merge rows from `source` (a path to a JSON table, or a dict) into the user table.
 
@@ -198,6 +221,22 @@ def selftest():
     assert 9999 not in set(missing_seeds()) or True     # missing_seeds only covers 0..255
     assert all(0 <= s < TOTAL_SEEDS for s in missing_seeds())
     assert len(missing_seeds()) == total - have
+
+    # harvested_seeds is the complement of missing_seeds, and every one of them must resolve
+    hs = harvested_seeds()
+    assert len(hs) == have and hs == sorted(hs)
+    assert not set(hs) & set(missing_seeds())
+    assert all(coefficients_for(s, 1)[0] is not None for s in hs)
+    # exact is a strictly narrower claim, and only meaningful per complexity
+    ex = harvested_seeds(1, exact_only=True)
+    assert set(ex) <= set(hs), "an exact seed that is not harvested at all is a contradiction"
+    assert all(coefficients_for(s, 1)[1] is True for s in ex)
+    try:
+        harvested_seeds(exact_only=True)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("exact_only without a complexity was accepted")
 
     # merging into a scratch table: added/updated counted, junk rejected, lookup picks it up
     tmp = os.path.join(tempfile.mkdtemp(), "user_coeffs.json")

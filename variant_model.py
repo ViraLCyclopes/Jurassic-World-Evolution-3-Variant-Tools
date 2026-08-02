@@ -21,6 +21,8 @@ class VariantModel:
     - keyColour (list[float]): Key colour [r, g, b] (u_globalKeyColour)
     - keyThreshold (float): Key threshold (u_globalKeyThreshold)
     - keyTolerance (float): Key tolerance (u_globalKeyTolerance)
+    - keyType (int): Which side of the key mask is repainted (u_globalKeyType).
+      VARIES BY VARIANT -- do not assume 1.
     - brightnessBase (float): Brightness base (u_globalColourBrightnessBase)
     - brightnessPalette (float): Brightness palette (u_globalColourBrightnessPalette)
     - saturationBase (float): Saturation base (u_globalColourSaturationBase)
@@ -31,8 +33,18 @@ class VariantModel:
     - paletteOffset (float): Palette offset (u_instancePaletteOffset)
     - paletteStrength (float): Palette strength (u_instancePaletteStrength)
     - layerColourWeights (list[float]): Per-layer colour weights (16 values, u_globalColourWeight1..16)
-    - layerSaturation (list[float]): Per-layer saturation (16 values, deferred to layer FGMs)
-    - layerContrast (list[float]): Per-layer contrast (16 values, deferred to layer FGMs)
+    - layerSaturation (list[float]): Per-layer saturation (16 values, u_baseColourSaturation1..16)
+    - layerContrast (list[float]): Per-layer contrast (16 values, u_baseColourContrast1..16)
+    - furTint (list[float]): RGB multiplier on the graded albedo (u_furTint)
+
+    `layerSaturation`/`layerContrast` were long documented as "deferred to layer FGMs" and left at
+    the all-1.0 default. That was wrong: the VARIANT fgm carries them, and they are not all 1.0 --
+    Pyroraptor variant 02 has contrasts [0.0, 1.61, 1.0, 0.89, 0.69, 1.0, 0.18, 0.33, ...].
+
+    `furTint` is the warm cast on a furred/feathered species and is the single biggest missing term
+    in the colour model: Pyroraptor v02 carries [1.0, 0.820, 0.545] on the body and a neutral
+    [1.0, 1.0, 1.0] on the feathers, which is exactly the game's sandy body against pale wings.
+    Without it the whole animal renders near-greyscale.
     """
 
     seed: int = 0
@@ -40,6 +52,7 @@ class VariantModel:
     keyColour: list = field(default_factory=lambda: [1.0, 1.0, 1.0])
     keyThreshold: float = 1.56
     keyTolerance: float = 0.28
+    keyType: int = 1
     brightnessBase: float = 1.0
     brightnessPalette: float = 1.0
     saturationBase: float = 1.0
@@ -52,6 +65,7 @@ class VariantModel:
     layerColourWeights: list = field(default_factory=lambda: [1.0] * 16)
     layerSaturation: list = field(default_factory=lambda: [1.0] * 16)
     layerContrast: list = field(default_factory=lambda: [1.0] * 16)
+    furTint: list = field(default_factory=lambda: [1.0, 1.0, 1.0])
 
     @classmethod
     def template(cls) -> 'VariantModel':
@@ -62,6 +76,7 @@ class VariantModel:
             keyColour=[1.0, 1.0, 1.0],
             keyThreshold=1.56,
             keyTolerance=0.28,
+            keyType=1,
             brightnessBase=1.0,
             brightnessPalette=1.0,
             saturationBase=1.0,
@@ -74,6 +89,7 @@ class VariantModel:
             layerColourWeights=[1.0] * 16,
             layerSaturation=[1.0] * 16,
             layerContrast=[1.0] * 16,
+            furTint=[1.0, 1.0, 1.0],
         )
 
     def to_dict(self) -> dict:
@@ -86,6 +102,7 @@ class VariantModel:
         d['layerColourWeights'] = list(self.layerColourWeights)
         d['layerSaturation'] = list(self.layerSaturation)
         d['layerContrast'] = list(self.layerContrast)
+        d['furTint'] = list(self.furTint)
         return d
 
     @classmethod
@@ -97,6 +114,7 @@ class VariantModel:
             keyColour=list(d['keyColour']),
             keyThreshold=d['keyThreshold'],
             keyTolerance=d['keyTolerance'],
+            keyType=int(d.get('keyType', 1)),
             brightnessBase=d['brightnessBase'],
             brightnessPalette=d['brightnessPalette'],
             saturationBase=d['saturationBase'],
@@ -109,6 +127,8 @@ class VariantModel:
             layerColourWeights=list(d['layerColourWeights']),
             layerSaturation=list(d['layerSaturation']),
             layerContrast=list(d['layerContrast']),
+            # tolerated as missing: presets and .json saved before furTint existed
+            furTint=list(d.get('furTint', [1.0, 1.0, 1.0])),
         )
 
     def to_json(self, path: str) -> None:

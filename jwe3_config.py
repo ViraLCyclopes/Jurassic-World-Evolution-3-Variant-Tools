@@ -40,8 +40,18 @@ ENV = {
     "game_dir": "JWE3_GAME_DIR",
     "cobra_tools": "JWE3_COBRA_TOOLS",
     "swatch_dir": "JWE3_SWATCH_DIR",
+    "fur_library": "JWE3_FUR_LIBRARY",
 }
 KEYS = tuple(ENV)
+
+# Settings that may name SEVERAL folders, separated by os.pathsep (';' on Windows, ':' elsewhere).
+#
+# Both are libraries of game textures the user extracts themselves, and there is no reason they
+# should live in one place: people keep a DinosaurFur dump per game version, or split the Swatch
+# Library across drives. `get()` still returns a single folder (the first that exists) so every
+# existing caller keeps working; `get_dirs()` returns all of them, in order, for the lookups that
+# should search more than one.
+MULTI = ("swatch_dir", "fur_library")
 
 
 # ---------------------------------------------------------------- config file
@@ -80,6 +90,38 @@ def write(**values):
     with open(config_path(), "w", encoding="utf-8") as fh:
         json.dump(cfg, fh, indent=1)
     return cfg
+
+
+# ---------------------------------------------------------------- the texture folder
+#
+# ONE folder, repointed as you go -- not a per-species map. You work on one species at a time, so a
+# single setting the editor can change in two clicks beats a registry of paths that has to be kept
+# in step with a species list.
+#
+# This replaces the packaged `Textures/<Species>` folder, which required copying large extracted
+# texture sets INTO the install: lost on every reinstall, impossible to share, and ~450 MB of game
+# data sitting in the source tree. That folder ships EMPTY and remains only as a legacy fallback --
+# see `preview_assets.mask_dir_for`.
+#
+# Kept out of `KEYS` deliberately: KEYS is what `setup_gui` renders as a fixed one-time setup form,
+# and this one is changed constantly from the editor instead.
+
+def textures_dir():
+    """The configured texture folder, or None if unset or no longer on disk.
+
+    The `isdir` check means a folder that has been moved or unplugged reports as unset rather than
+    resolving to a dead path -- the caller then falls back cleanly instead of hunting for masks in
+    a directory that is not there.
+    """
+    v = read().get("textures_dir")
+    return str(v) if v and os.path.isdir(str(v)) else None
+
+
+def set_textures_dir(path):
+    """Set the texture folder. `path` None or empty clears it. Returns the stored value."""
+    v = os.path.abspath(str(path)) if path else None
+    write(textures_dir=v)
+    return v
 
 
 # ---------------------------------------------------------------- helpers
@@ -181,8 +223,24 @@ def detect_cobra_tools():
 def detect_swatch_dir():
     """The Swatch Library, if the user has put it somewhere we look. Never auto-extracted."""
     for c in (os.path.join(config_dir(), "SwatchLibrary"),
-              os.path.join(HERE, "SwatchLibrary")):
+              # NOTE: no `HERE/SwatchLibrary` candidate. The software ships no game textures, so
+              # that folder does not exist; probing it only ever produced a dead path.
+              ):
         if os.path.isdir(c) and any(f.lower().endswith(".png") for f in os.listdir(c)):
+            return os.path.abspath(c)
+    return None
+
+
+def detect_fur_library():
+    """The shared `DinosaurFur` card-texture folder, if it sits somewhere we look.
+
+    Not auto-extracted, same as the Swatch Library. The usual case needs nothing set at all:
+    `part_manifest.fur_library_dirs` finds `DinosaurFur` by walking UP from the species folder,
+    which is where an extraction naturally puts it. This is for when it lives elsewhere.
+    """
+    for c in (os.path.join(config_dir(), "DinosaurFur"),
+              os.path.join(HERE, "DinosaurFur")):
+        if os.path.isdir(c):
             return os.path.abspath(c)
     return None
 
@@ -191,14 +249,58 @@ DETECTORS = {
     "game_dir": lambda: (detect_game_dirs() or [None])[0],
     "cobra_tools": detect_cobra_tools,
     "swatch_dir": detect_swatch_dir,
+    "fur_library": detect_fur_library,
 }
 
 
 # ---------------------------------------------------------------- the API
-def get(key, required=False):
-    """Resolve one setting: env, then config, then detection. None if unknown."""
+def get_dirs(key):
+    """EVERY folder configured for `key`, in order, existing ones only.
+
+    For a `MULTI` setting the env var and the config value may each list several folders separated
+    by `os.pathsep`; the detected folder is appended last so a user-supplied path always wins.
+    Duplicates are dropped, case-insensitively on Windows.
+    """
     if key not in KEYS:
         raise KeyError("unknown setting %r (expected one of %s)" % (key, ", ".join(KEYS)))
+    raw = []
+    for src in (os.environ.get(ENV[key]), read().get(key)):
+        if not src:
+            continue
+        raw.extend(src.split(os.pathsep) if key in MULTI else [src])
+    detected = DETECTORS[key]()
+    if detected:
+        raw.append(detected)
+    out, seen = [], set()
+    for p in raw:
+        p = (p or "").strip()
+        if not p or not os.path.isdir(p):
+            continue
+        ap = os.path.abspath(p)
+        k = os.path.normcase(ap)
+        if k not in seen:
+            seen.add(k)
+            out.append(ap)
+    return out
+
+
+def get(key, required=False):
+    """Resolve one setting: env, then config, then detection. None if unknown.
+
+    For a `MULTI` setting this is the FIRST configured folder -- callers that should search all of
+    them use `get_dirs`.
+    """
+    if key not in KEYS:
+        raise KeyError("unknown setting %r (expected one of %s)" % (key, ", ".join(KEYS)))
+    if key in MULTI:
+        dirs = get_dirs(key)
+        if dirs:
+            return dirs[0]
+        if required:
+            raise RuntimeError(
+                "%s is not set and could not be detected.\nRun the setup tool:  python setup_gui.py\n"
+                "or set the %s environment variable." % (key, ENV[key]))
+        return None
     value = os.environ.get(ENV[key]) or read().get(key)
     if value and os.path.isdir(value):
         return os.path.abspath(value)
@@ -213,11 +315,20 @@ def get(key, required=False):
 
 
 def source(key):
-    """Where the current value came from -- 'environment', 'config', 'detected' or 'missing'."""
-    if os.environ.get(ENV[key]) and os.path.isdir(os.environ[ENV[key]]):
+    """Where the current value came from -- 'environment', 'config', 'detected' or 'missing'.
+
+    A MULTI setting may list several folders, so test each entry rather than the raw string --
+    `os.path.isdir("A;B")` is False and would have reported a perfectly good pair as 'missing'.
+    """
+    def any_dir(v):
+        if not v:
+            return False
+        parts = v.split(os.pathsep) if key in MULTI else [v]
+        return any(p.strip() and os.path.isdir(p.strip()) for p in parts)
+
+    if any_dir(os.environ.get(ENV[key])):
         return "environment"
-    v = read().get(key)
-    if v and os.path.isdir(v):
+    if any_dir(read().get(key)):
         return "config"
     return "detected" if DETECTORS[key]() else "missing"
 
@@ -264,7 +375,35 @@ def selftest():
         assert source("game_dir") == "config"
         write(game_dir=None)
 
-        assert set(KEYS) == {"game_dir", "cobra_tools", "swatch_dir"}, KEYS
+        assert set(KEYS) == {"game_dir", "cobra_tools", "swatch_dir", "fur_library"}, KEYS
+        assert set(MULTI) <= set(KEYS) and set(MULTI) == {"swatch_dir", "fur_library"}, MULTI
+
+        # --- MULTI settings: several folders, os.pathsep-separated, in order, existing only.
+        #     `get` must keep returning ONE folder so every existing caller is unaffected.
+        a, b = os.path.abspath(HERE), os.path.abspath(config_dir())
+        os.makedirs(b, exist_ok=True)
+        old_env = os.environ.get(ENV["fur_library"])
+        try:
+            os.environ[ENV["fur_library"]] = os.pathsep.join([a, "Z:/does-not-exist", b])
+            dirs = get_dirs("fur_library")
+            assert dirs[:2] == [a, b], dirs          # bogus entry dropped, order kept
+            assert get("fur_library") == a, get("fur_library")
+            assert source("fur_library") == "environment"
+            # a duplicate, differing only by case, must not appear twice
+            os.environ[ENV["fur_library"]] = os.pathsep.join([a, a.upper()])
+            assert len(get_dirs("fur_library")) == 1, get_dirs("fur_library")
+            # every entry bogus -> nothing configured, and `source` must not claim otherwise
+            os.environ[ENV["fur_library"]] = os.pathsep.join(["Z:/nope", "Z:/also-nope"])
+            assert get_dirs("fur_library") == [] or all(os.path.isdir(d)
+                                                        for d in get_dirs("fur_library"))
+            assert source("fur_library") != "environment"
+        finally:
+            if old_env is None:
+                os.environ.pop(ENV["fur_library"], None)
+            else:
+                os.environ[ENV["fur_library"]] = old_env
+        # a single-valued setting must NOT be split on os.pathsep
+        assert "game_dir" not in MULTI
         try:
             get("nonsense")
         except KeyError:

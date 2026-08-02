@@ -69,14 +69,26 @@ def by_seed():
     and complexity 2 and all nine of those numbers are identical between the two rows, while the
     frequencies differ exactly as `freq_high` predicts (102 vs 153).
 
-    THE EVIDENCE IS ONE SEED OBSERVED TWICE. It is a strong fit but a thin sample, so anything
-    rendered through this path is marked `coeffExact: False` and should be sanity-checked against
-    the game before being trusted. It doubles usable coverage (10 -> 20 of 48 variants across the
-    four species we have) without a single new capture, which is why it is worth having.
+    THE SAMPLE IS NO LONGER THIN. Measured across the 25 seeds now held at more than one
+    complexity, `gradOffset`, `gradAmplitude` and `gradPhase` are identical in EVERY one -- zero
+    differences. Rendering through this path is still marked `coeffExact: False`, because the
+    frequency is reconstructed rather than measured.
+
+    PREFER THE HIGHEST COMPLEXITY AVAILABLE, which is not a detail. `coefficients_for` rebuilds
+    `gradFreq` by keeping whichever channels sat at the LOW level and recomputing the fast level --
+    but a row harvested at a low complexity cannot distinguish "this channel is always low" from
+    "this channel is low *here*". Seed 196 is the case in point: its complexity-0 row is
+    `[51, 51, 51]` while the truth at complexity 1 is `[51, 102, 102]`, so reconstructing from the
+    c0 row loses two channels. Reconstructing the other way round is exact.
+
+    Measured over the 25 seeds held at more than one complexity: taking the LOWEST row (which
+    `setdefault` over a sorted dict silently did) got 59/60 reconstructions right; taking the
+    highest gets 60/60. The non-frequency coefficients were identical in every one of those 25
+    seeds, which is the strongest evidence yet that they are seed-only.
     """
     out = {}
     for (seed, cx), r in sorted(available().items()):
-        out.setdefault(seed, r)
+        out[seed] = r          # sorted ascending, so the LAST write is the highest complexity
     return out
 
 
@@ -118,13 +130,18 @@ def block(species, variant, sex="Female", coeffs=None):
         "keyColour": [float(x) for x in v["u_globalKeyColour"]],
         "keyTolerance": _s(v["u_globalKeyTolerance"]),
         "keyThreshold": _s(v["u_globalKeyThreshold"]),
-        # NOT read from u_globalKeyType. That field is 0.0 in every variant of every species
-        # checked, so it carries no information, while bit 16 of the uploaded block is SET in
-        # every capture clean enough to read. The bit is what the shader branches on, and with it
-        # clear the mask is inert (blend saturates to one value over the whole animal). See
-        # material_block.key_blend. If a variant ever turns up whose FGM value is non-zero, this
-        # is the line to revisit.
-        "keyType": True,
+        # The GPU bit is the COMPLEMENT of u_globalKeyType.
+        #
+        # This used to be hardcoded True, justified by "that field is 0.0 in every variant of every
+        # species checked, so it carries no information". THAT PREMISE IS FALSE: Pyroraptor v00 and
+        # v02 both carry 1.0, and v09 carries 0.0.
+        #
+        # Measured 2026-08-01 against the game's own GBuffer albedo, captured unlit via the ReShade
+        # add-on and decoded from sRGB. v02 (FGM 1.0) and v09 (FGM 0.0) need OPPOSITE bits, which is
+        # the case that discriminates -- no constant can satisfy both, and neither can a direct
+        # mapping. v09's base-side prediction lands 0.301 against a measured 0.302.
+        # See preview_bridge.model_to_block for the full table.
+        "keyType": not bool(_s(v["u_globalKeyType"])),
         "brightnessBase": _s(v["u_globalColourBrightnessBase"]),
         "brightnessPalette": _s(v["u_globalColourBrightnessPalette"]),
         "saturationBase": _s(v["u_globalColourSaturationBase"]),
@@ -210,20 +227,39 @@ def selftest():
 
     # ---- the corrupt row must be excluded from every lookup
     assert (30, 5) not in available(), "the shifted seed-30 cx-5 row must stay quarantined"
-    assert by_seed()[30]["complexity"] in (1, 2), by_seed()[30]
+    # `by_seed` must hand back the HIGHEST complexity held for a seed -- see its docstring; a
+    # low-complexity row cannot tell "always low" from "low here" and reconstructs wrongly.
+    #
+    # DISCOVER the expectation, never hard-code it. This used to assert seed 30's row was at
+    # complexity 1 or 2, which quietly encoded the harvest coverage of the day and broke the
+    # moment seed 30 was captured at complexity 3. Same mistake as the Lokiceratops pin below.
+    _bs = by_seed()
+    for _seed, _row in _bs.items():
+        _held = [cx for (s, cx) in available() if s == _seed]
+        assert _row["complexity"] == max(_held), (_seed, _row["complexity"], sorted(_held))
 
-    # ---- seed-only reuse: Lokiceratops 1 is seed 54 cx 4, harvested only at cx 5
-    reused = block("Lokiceratops", 1)
-    assert reused["gradientEnabled"], "seed 54 is held, so this must now render"
-    assert not reused["coeffExact"], "but it must be flagged as reconstructed"
-    src = available()[(54, 5)]
-    assert reused["gradOffset"] == src["gradOffset"], "offset is seed-only, carry it verbatim"
-    assert reused["gradAmplitude"] == src["gradAmplitude"], "amplitude is seed-only"
-    assert reused["gradPhase"] == src["gradPhase"], "phase is seed-only"
-    # frequencies rebuilt for cx 4, keeping each channel's low/high selection
-    want = [FREQ_LOW if f == FREQ_LOW else freq_high(4) for f in src["gradFreq"]]
-    assert reused["gradFreq"] == want, (reused["gradFreq"], want)
-    assert freq_high(4) != freq_high(5), "the rebuild must actually change something"
+    # ---- seed-only reuse.
+    #
+    # DO NOT pin this to a named species and variant. It used to assert that Lokiceratops 1
+    # (seed 54, cx 4) was reachable only by reuse -- which quietly encoded the harvest coverage of
+    # the day, and broke the moment the f16 fix brought seed 54 cx 4 in exactly. The mechanism is
+    # what matters, so DISCOVER a seed held at exactly one complexity and ask for another.
+    single = {}
+    for (seed, cx) in have:
+        single.setdefault(seed, []).append(cx)
+    seed, cxs = next(((s, c) for s, c in sorted(single.items()) if len(c) == 1), (None, None))
+    assert seed is not None, "every harvested seed is held at 2+ complexities; nothing to reuse"
+    src = have[(seed, cxs[0])]
+    other = next(c for c in range(11) if freq_high(c) != freq_high(cxs[0]))
+    row, exact = coefficients_for(seed, other)
+    assert row is not None, (seed, other)
+    assert not exact, "a complexity we never harvested must be flagged as reconstructed"
+    assert row["gradOffset"] == src["gradOffset"], "offset is seed-only, carry it verbatim"
+    assert row["gradAmplitude"] == src["gradAmplitude"], "amplitude is seed-only"
+    assert row["gradPhase"] == src["gradPhase"], "phase is seed-only"
+    # frequencies rebuilt for the new complexity, keeping each channel's low/high selection
+    want = [FREQ_LOW if f == FREQ_LOW else freq_high(other) for f in src["gradFreq"]]
+    assert row["gradFreq"] == want, (row["gradFreq"], want)
 
     # ---- and the evidence the whole re-keying rests on: seed 30 at two complexities
     a, c = available()[(30, 1)], available()[(30, 2)]

@@ -59,7 +59,25 @@ import bpy
 HERE = os.path.dirname(os.path.abspath(__file__))
 import _paths  # noqa: E402  (vendored: replaces a hard-coded absolute path that only ever
                # resolved on one machine -- the Swatch Library now comes from the shared config)
+import part_manifest  # noqa: E402  (fgm_slots / texture_files -- name-driven texture resolution)
 SWATCH_DIR = _paths.swatch_dir()
+
+
+def find_base_fgm(tex_dir, prefix):
+    """The species' base `<prefix>.fgm` in `tex_dir`, or None.
+
+    This is the file that NAMES the body's textures (`pBaseDiffuseTexture ->
+    pyroraptor.pbasediffusetexture.tex`, `pLayered_BlendWeights -> pyroraptor.playered_blendweights
+    .tex`). Matching cobra-tools, the .fgm is the authority on what to load; the prefix-built
+    filenames are only a fallback for folders that do not ship one.
+    """
+    if not tex_dir or not os.path.isdir(tex_dir) or not prefix:
+        return None
+    want = f"{prefix}.fgm".lower()
+    for f in sorted(os.listdir(tex_dir)):
+        if f.lower() == want:
+            return os.path.join(tex_dir, f)
+    return None
 
 # All 54 slices of each shared array texture carry ONE filename prefix -- the name of whichever
 # swatch the array happens to be attributed to. Only `array_index` picks the slice.
@@ -194,8 +212,11 @@ def _new_group(name, inputs, outputs):
     """(group, group-input node, group-output node), rebuilt from scratch each run.
 
     An existing group of the same name is REMOVED, not reused, so an edit to this file always
-    takes effect. The two shared helper groups are therefore cached by `_shared` below -- rebuilding
-    them mid-build would orphan every layer group that already points at them.
+    takes effect.
+
+    That removal is destructive to anything already pointing at the group, which is fine for the
+    per-material trees (they are rebuilt in the same call) but was NOT fine for the two shared
+    helpers -- see `_shared`, which now adopts an in-use datablock rather than letting this run.
     """
     if name in bpy.data.node_groups:
         bpy.data.node_groups.remove(bpy.data.node_groups[name])
@@ -267,10 +288,43 @@ def layout(tree, dx=210, dy=200):
 _SHARED = {}
 
 
+# The datablock name each shared-helper builder writes. Needed because `_shared` has to look the
+# group up in `bpy.data` BEFORE calling the builder -- see below.
+SHARED_GROUP_NAMES = {"blend_group": "JWE3_LayerBlend", "satcon_group": "JWE3_SatContrast"}
+
+
 def _shared(fn):
-    """Build a shared helper group once per `build()`; see the note in `_new_group`."""
+    """The shared helper group, ADOPTING an existing one that other materials still use.
+
+    This used to rebuild unconditionally whenever the in-process cache was cold, and `build()`
+    clears that cache on entry. `_new_group` REMOVES the datablock of the same name -- so building
+    any material silently destroyed `JWE3_LayerBlend` and `JWE3_SatContrast` out from under every
+    material built earlier, leaving each of their layer groups holding a socketless GROUP node.
+
+    The damage was invisible and severe. With the blend group gone, a layer's mask reached nothing
+    and `smoothstep` ran on the literal 0.5 default, so all eight layers composited at a flat 50%
+    across the whole animal instead of within their masks. Everything still rendered; it just
+    rendered an average of every swatch, and regions no layer covers -- eyes, teeth -- got graded
+    when the game leaves them alone. Reloading this module in Blender did it too, since the cache
+    lives in module state.
+
+    So: reuse whatever is already in `bpy.data` and in use. The cost is that an edit to
+    `blend_group`/`satcon_group` no longer takes effect on a rebuild within the same session --
+    delete the datablock (or restart Blender) to pick one up. That is a far smaller trap than
+    silently breaking every material already in the file.
+    """
     key = fn.__name__
-    if key not in _SHARED or _SHARED[key].users == 0:
+    cached = _SHARED.get(key)
+    try:
+        if cached is not None and cached.name:      # raises if the datablock was removed
+            return cached
+    except ReferenceError:
+        pass
+    name = SHARED_GROUP_NAMES.get(key)
+    existing = bpy.data.node_groups.get(name) if name else None
+    if existing is not None and existing.users:
+        _SHARED[key] = existing
+    else:
         _SHARED[key] = fn()
     return _SHARED[key]
 
@@ -597,7 +651,38 @@ def _remap(g, m, colour, L):
     return rtex.outputs["Color"]
 
 
-def base_group(tex_dir, prefix, levels=(0.0, 0.5, 1.0), name="JWE3_Base"):
+def _base_texture(tex_dir, prefix, slot, channel, fgm_path=None):
+    """The PNG for one base-material slot: the .fgm's own dependency name first, prefix second.
+
+    The FGM is the authority and cobra-tools reads it the same way -- `<textureinfo>` gives the slot
+    and `<dependency_name>` the file, so nothing has to be reconstructed from the species name.
+    `pyroraptor.fgm` really does name `pyroraptor.pbasediffusetexture.tex` and
+    `pyroraptor.playered_blendweights.tex`; this used to ignore all of it and build
+    `f"{prefix}.pbasediffusetexture.png"` from a prefix sniffed off whichever blend-weights file
+    happened to be in the folder.
+
+    That assumption -- one prefix per folder -- is not guaranteed. Pyroraptor's FEATHERS material
+    already breaks it, naming `pyroraptor_feathers.*` and shared-library `feathers.*` side by side.
+    It happens to hold for the body on all six extracted species, so this is a latent trap rather
+    than a live bug, and the prefix path stays as a fallback for folders with no base .fgm.
+
+    Returns None when the slot is absent, is an inline RGBA placeholder, or has no file on disk.
+    """
+    if fgm_path and os.path.isfile(fgm_path):
+        try:
+            dep = part_manifest.fgm_slots(fgm_path).get(slot)
+        except Exception:
+            dep = None
+        if dep:
+            hit = part_manifest.texture_files(dep, tex_dir).get(channel)
+            if hit:
+                return hit
+    p = os.path.join(tex_dir, "%s.%s%s.png"
+                     % (prefix, slot.lower(), "_" + channel if channel else ""))
+    return p if os.path.isfile(p) else None
+
+
+def base_group(tex_dir, prefix, levels=(0.0, 0.5, 1.0), name="JWE3_Base", fgm_path=None):
     """The species' own base maps -- the part the 16 layers sit ON TOP OF.
 
     Leaving these out was the single biggest error in the first node build: the layer stack alone is
@@ -628,8 +713,8 @@ def base_group(tex_dir, prefix, levels=(0.0, 0.5, 1.0), name="JWE3_Base"):
     gamma = max(2.0 * mid if mid < 0.5 else 0.5 / max(1.0 - mid, 1e-6), 1.0 / 511.0)
     inv_span = 1.0 / max(hi - lo, 1e-6)
 
-    dp = os.path.join(tex_dir, f"{prefix}.pbasediffusetexture.png")
-    if os.path.isfile(dp):
+    dp = _base_texture(tex_dir, prefix, "pBaseDiffuseTexture", "", fgm_path)
+    if dp:
         dtex = g.nodes.new("ShaderNodeTexImage")
         dtex.image = _img(dp, noncolor=False)
         g.links.new(uv, dtex.inputs["Vector"])
@@ -647,10 +732,10 @@ def base_group(tex_dir, prefix, levels=(0.0, 0.5, 1.0), name="JWE3_Base"):
     else:
         gout.inputs["Diffuse"].default_value = (0.5, 0.5, 0.5, 1.0)
         gout.inputs["RawDiffuse"].default_value = (0.5, 0.5, 0.5, 1.0)
-        print(f"  no base diffuse at {os.path.basename(dp)}")
+        print(f"  no base diffuse for {prefix} (pBaseDiffuseTexture)")
 
-    np_ = os.path.join(tex_dir, f"{prefix}.pbasenormaltexture_RG.png")
-    if os.path.isfile(np_):
+    np_ = _base_texture(tex_dir, prefix, "pBaseNormalTexture", "RG", fgm_path)
+    if np_:
         ntex = g.nodes.new("ShaderNodeTexImage")
         ntex.image = _img(np_)
         g.links.new(uv, ntex.inputs["Vector"])
@@ -669,11 +754,16 @@ def base_group(tex_dir, prefix, levels=(0.0, 0.5, 1.0), name="JWE3_Base"):
         nm.uv_map = "UV0"
         g.links.new(ncomb.outputs["Color"], nm.inputs["Color"])
         g.links.new(nm.outputs["Normal"], gout.inputs["Normal"])
+        g["jwe3_has_normal"] = True
     else:
-        print(f"  no base normal at {os.path.basename(np_)}")
+        # Leave the group output UNCONNECTED and say so. An unlinked NodeSocketVector reads as
+        # (0,0,0) -- a zero-length normal -- and feeding that to Bump/Principled renders the
+        # whole animal a flat purple. The caller must skip the link, not paper over it here.
+        g["jwe3_has_normal"] = False
+        print(f"  no base normal for {prefix} (pBaseNormalTexture)")
 
-    ap = os.path.join(tex_dir, f"{prefix}.pbaseaotexture_R.png")
-    if os.path.isfile(ap):
+    ap = _base_texture(tex_dir, prefix, "pBaseAOTexture", "R", fgm_path)
+    if ap:
         atex = g.nodes.new("ShaderNodeTexImage")
         atex.image = _img(ap)
         g.links.new(uv, atex.inputs["Vector"])
@@ -683,8 +773,41 @@ def base_group(tex_dir, prefix, levels=(0.0, 0.5, 1.0), name="JWE3_Base"):
     return layout(g)
 
 
+# The tail's layout, as three rules rather than fixed coordinates. Taken from an arrangement the
+# user made by hand, which reads far better than the depth-sort `layout()` produces:
+#
+#   * the ALBEDO flow runs left to right on one raised line;
+#   * the base-diffuse group sits beside its CONSUMERS at the end of the layer chain, not back at
+#     the start with the UV node -- depth-sorting put it at x=340 while the Mix that reads it was at
+#     x=3060, so the one link that matters crossed the whole graph;
+#   * auxiliary inputs (fur mask, pattern index map) and the normal path (Bump) sit BELOW the line,
+#     so the colour chain reads uninterrupted.
+#
+# `blender_parts.layout_chain` continues the same line for the spliced grade/pattern groups.
+TAIL_LINE_Y = 120.0          # the albedo flow
+TAIL_BASE_DY = 178.0         # base diffuse, above the line
+TAIL_LOW_Y = -203.0          # Bump and the aux textures
+TAIL_DX = 300.0
+
+
+def _layout_tail(nt, prev, base):
+    """Place the base group, the albedo mixes and the Bump on the tail rules above."""
+    if prev is None:
+        return
+    x = prev.location.x
+    base.location = (x - 38.0, TAIL_BASE_DY)
+    # The albedo mixes are NOT placed here: `blender_parts.layout_chain` walks the actual links and
+    # lays the whole tail out in link order, which is the only way to get the AO multiply on the
+    # correct side of the grade. This function owns the base group and the normal path only.
+    x += TAIL_DX + 208.0
+    bump = next((n for n in nt.nodes if n.type == "BUMP"), None)
+    if bump is not None:
+        bump.location = (x, TAIL_LOW_Y)
+    # bsdf/out are placed by layout_chain, at the end of the link-ordered row.
+
+
 def build(layers, mask_dir, mask_prefix, mat_name="JWE3_Layered", bump_distance=1.0,
-          levels=(0.0, 0.5, 1.0), use_ao=True):
+          levels=(0.0, 0.5, 1.0), use_ao=True, fgm_path=None):
     """Build the material as a left-to-right chain of per-layer groups.
 
     Every layer that has a mask channel is included, even if it has no texture in a given slot --
@@ -700,13 +823,26 @@ def build(layers, mask_dir, mask_prefix, mat_name="JWE3_Layered", bump_distance=
     uv.uv_map = "UV0"
     uv.location = (-400, 0)
 
+    # The blend-weight masks: stem from the .fgm's own `pLayered_BlendWeights` dependency when it
+    # names one, else the sniffed folder prefix. The `_[NN]_C` tail is an ARRAY INDEX plus a channel
+    # split, added by cobra-tools' extraction -- it is not part of the name the .fgm carries, so
+    # this is the one place the suffix still has to be constructed.
+    mask_stem = f"{mask_prefix}.playered_blendweights"
+    if fgm_path and os.path.isfile(fgm_path):
+        try:
+            dep = part_manifest.fgm_slots(fgm_path).get("pLayered_BlendWeights")
+        except Exception:
+            dep = None
+        if dep:
+            mask_stem = os.path.splitext(os.path.basename(dep))[0]
+
     prev = None
     x = 0
     used = 0
     for L in layers:
         if not L["used"] or L["blend_texture"] is None:
             continue
-        mp = os.path.join(mask_dir, f"{mask_prefix}.playered_blendweights_"
+        mp = os.path.join(mask_dir, f"{mask_stem}_"
                                     f"[{L['blend_texture']:02d}]_{L['blend_channel']}.png")
         if not os.path.isfile(mp):
             print(f"  L{L['layer_no']:02d} skipped: no mask {os.path.basename(mp)}")
@@ -734,7 +870,7 @@ def build(layers, mask_dir, mask_prefix, mat_name="JWE3_Layered", bump_distance=
     nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
 
     base = nt.nodes.new("ShaderNodeGroup")
-    base.node_tree = base_group(mask_dir, mask_prefix, levels, f"{mat_name}_Base")
+    base.node_tree = base_group(mask_dir, mask_prefix, levels, f"{mat_name}_Base", fgm_path)
     base.width = 220
     base.label = "base diffuse / normal / AO"
     nt.links.new(uv.outputs["UV"], base.inputs["UV"])
@@ -767,12 +903,18 @@ def build(layers, mask_dir, mask_prefix, mat_name="JWE3_Layered", bump_distance=
         bn = nt.nodes.new("ShaderNodeBump")
         bn.inputs["Distance"].default_value = bump_distance
         nt.links.new(prev.outputs["Bump"], bn.inputs["Height"])
-        nt.links.new(base.outputs["Normal"], bn.inputs["Normal"])
+        # ONLY if the base group actually produced a normal. Its "Normal" output is left
+        # unconnected when pBaseNormalTexture is missing, and an unlinked vector socket reads as
+        # (0,0,0): a zero-length normal, which renders as flat purple over the entire mesh.
+        # Left unlinked, Bump falls back to the true surface normal, which is what we want.
+        if base.node_tree.get("jwe3_has_normal"):
+            nt.links.new(base.outputs["Normal"], bn.inputs["Normal"])
         nt.links.new(bn.outputs["Normal"], bsdf.inputs["Normal"])
         mat["jwe3_albedo_node"] = ov.name          # the palette replaces what feeds Base Color
     mat["jwe3_last_layer"] = prev.name if prev else ""    # the palette hooks onto its Height
     mat["jwe3_base_node"] = base.name
     layout(nt, dx=320, dy=260)
+    _layout_tail(nt, prev, base)
     print(f"{mat.name}: {used} layers wired")
     return mat
 
@@ -812,16 +954,20 @@ def preview_albedo(mat, on=True):
 
 def build_from_json(json_path, mask_dir, mask_prefix, **kw):
     d = json.load(open(json_path))
+    kw.setdefault("fgm_path", find_base_fgm(mask_dir, mask_prefix))
     kw.setdefault("mat_name", f"JWE3_{d['species']}_{d['sex']}")
     return build(d["layers"], mask_dir, mask_prefix, **kw)
 
 
 def selftest():
     """Build both groups and a two-layer stack from synthetic data, and check the maths."""
-    g = blend_group()
+    # Go through `_shared`, NOT the builders directly. Calling blend_group() here removes the live
+    # JWE3_LayerBlend datablock, which is precisely how running this selftest used to break every
+    # material already in the scene.
+    g = _shared(blend_group)
     assert {s.name for s in g.interface.items_tree if s.item_type == "SOCKET"} >= \
         {"PrevHeight", "LayerHeight", "Mask", "ScaleA", "ScaleB", "Blend", "Height", "Bump"}
-    satcon_group()
+    _shared(satcon_group)
 
     # the A == B == 0 collapse, computed the way the group does
     def blend_of(mask, delta=0.0):
@@ -837,10 +983,51 @@ def selftest():
                "blend_channel": "R", "slices": {}, "params": {"pUVTile": [8.0, 8.0]}},
               {"used": False, "layer_no": 2, "swatch": "None", "blend_texture": 0,
                "blend_channel": "G", "slices": {}, "params": {}}]
+    # --- texture resolution is NAME-DRIVEN, with the prefix only as a fallback.
+    #     cobra-tools reads `<textureinfo>` + `<dependency_name>` and matches
+    #     `<stem>.` / `<stem>_` on disk; we now do the same, because a prefix built from the species
+    #     name cannot resolve a material that mixes prefixes -- and Pyroraptor's feathers do.
+    # --- a missing base normal must leave the group's Normal output UNCONNECTED and flag it.
+    #     An unlinked NodeSocketVector reads as (0,0,0); feeding that zero-length normal to
+    #     Bump/Principled renders the whole animal flat purple. `build` checks the flag.
+    ng = base_group("Z:/nonexistent", "none", name="JWE3_selftest_nonormal")
+    assert ng.get("jwe3_has_normal") is False, ng.get("jwe3_has_normal")
+    gout_ = next(n for n in ng.nodes if n.type == "GROUP_OUTPUT")
+    assert not gout_.inputs["Normal"].links, "Normal was wired despite having no texture"
+    bpy.data.node_groups.remove(ng)
+
+    assert find_base_fgm("Z:/nonexistent", "anything") is None
+    assert find_base_fgm(None, None) is None
+    assert _base_texture("Z:/nonexistent", "none", "pBaseDiffuseTexture", "", None) is None
+    # a bogus fgm_path must fall through to the prefix path, never raise
+    assert _base_texture("Z:/nonexistent", "none", "pBaseDiffuseTexture", "",
+                         "Z:/nonexistent/none.fgm") is None
+
+    # --- REGRESSION: building one material must not destroy another's shared groups.
+    #
+    # `build()` clears the in-process cache, and `_new_group` removes any datablock of the same
+    # name. So a second build used to delete JWE3_LayerBlend / JWE3_SatContrast out from under the
+    # first material, leaving socketless GROUP nodes inside every one of its layer groups. Nothing
+    # errored: the masks simply stopped reaching the blend, `smoothstep` ran on its 0.5 default,
+    # and all the layers composited at a flat 50% over the whole animal.
+    #
+    # Stand in for an already-built material with a bare node group that points at the shared one.
+    canary = bpy.data.node_groups.new("JWE3_selftest_canary", "ShaderNodeTree")
+    ref = canary.nodes.new("ShaderNodeGroup")
+    ref.node_tree = _shared(blend_group)
+    shared_name = ref.node_tree.name
+
     mat = build(layers, mask_dir="Z:/nonexistent", mask_prefix="none",
                 mat_name="JWE3_selftest")
     # no masks on disk, so nothing wires up, but the material and output must still exist
     assert any(n.type == "OUTPUT_MATERIAL" for n in mat.node_tree.nodes)
+
+    assert ref.node_tree is not None, (
+        "build() destroyed the shared group a previously-built material was using -- every layer "
+        "mask in it is now disconnected. See _shared.")
+    assert ref.node_tree.name == shared_name, ref.node_tree.name
+    bpy.data.node_groups.remove(canary)
+
     bpy.data.materials.remove(mat)
     print("selftest ok")
 

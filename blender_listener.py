@@ -91,6 +91,7 @@ importable by plain `python` outside Blender for the headless sanity check at th
 import json
 import os
 import queue
+import shutil
 import socket
 import struct
 import sys
@@ -109,6 +110,25 @@ _server_sock = None
 _server_thread = None
 _stop_event = threading.Event()
 _command_queue = queue.Queue()
+def _on_load_post(*_args):
+    """Drop cached datablocks when Blender loads a file (File > New / Open / revert).
+
+    `_current_mat` holds a Material. Loading a file frees every datablock, and a freed one is NOT
+    None -- it is a dead StructRNA that raises `ReferenceError: StructRNA has been removed` on
+    first touch, so `if _current_mat is None` waves it straight through. Clearing here makes the
+    next `grade` report "nothing built yet", which is true and recoverable.
+    """
+    global _current_mat, _current_grade
+    _current_mat = None
+    _current_grade = None
+
+
+# Equivalent to decorating with @bpy.app.handlers.persistent, which we cannot do: this module is
+# imported headlessly by the selftests and has no bpy at module scope. Blender only looks for this
+# attribute. Without it the handler is REMOVED by the very first file load -- the one load it
+# exists to handle.
+_on_load_post._bpy_persistent = True
+
 _current_mat = None  # the last material built by a "build" command; "grade" re-grades this
 _current_grade = None  # NAME of the grade node the last "grade" spliced in, removed by the next
                        # one (see _unsplice_grade). A name, not a reference: node references go
@@ -116,6 +136,12 @@ _current_grade = None  # NAME of the grade node the last "grade" spliced in, rem
 # What File > Import last loaded, so the standalone editor can follow along (it polls "state").
 # `serial` increments on every import, which is how the editor spots a RE-import of the same file.
 _last_import = {"path": None, "object": None, "species": None, "sex": None, "serial": 0}
+
+# The ADD-ON's module name, set by __init__.py before register(). Blender matches
+# AddonPreferences.bl_idname against it, and this module's own __name__ is NOT it -- we are
+# imported flat ("blender_listener"), so using __name__ meant the preferences panel never
+# rendered and the texture-folder settings were unreachable from inside Blender.
+ADDON_ID = None
 
 
 def _here():
@@ -389,6 +415,290 @@ def _model_texture_dir(object_name):
 
 
 # -- File > Import > JWE3 Variant (.fgm) -----------------------------------
+def import_pattern(fgm_path, object_name=None):
+    """Load a pattern .fgm and splice it over whatever the target part already shows.
+
+    Patterns and variants are SEPARATE cosmetic axes in game -- either can be applied without the
+    other -- so this deliberately does not require a variant to be present. `blender_parts.splice_at`
+    inserts by CHAIN_POS rather than at the end of the chain, so applying a pattern before or after
+    a variant gives the same node tree (asserted in blender_pattern_nodes.selftest).
+
+    The pattern's per-texel index comes from the species pattern SET, not the pattern itself:
+    `<species>_patternset_01.u_basePatternMap` for the body and `u_feathersBasePatternMap` for the
+    plumage. Without it the whole mesh reads one LUT entry, which is a flat tint.
+    """
+    for p in (_here(), _parent_dir()):
+        if p not in sys.path:
+            sys.path.insert(0, p)
+    import blender_parts
+    import blender_pattern_nodes as bpn
+    import export_pattern
+    import part_manifest
+
+    species_dir = os.path.dirname(os.path.abspath(fgm_path))
+    stem = os.path.splitext(os.path.basename(fgm_path))[0]
+    try:
+        _core, part = part_manifest.split_part(stem)
+    except ValueError:
+        part = "Feathers" if "featherspattern" in stem.lower() else ""
+
+    # A SELECTED mesh wins over name-based discovery. Object names are user-editable and several
+    # animals can share a scene, so a naming convention can only ever be the fallback -- "apply it
+    # to the thing I have selected" is unambiguous and needs no convention at all.
+    import bpy
+    selected = [o for o in bpy.context.selected_objects
+                if o.type == "MESH" and "joint_physics" not in o.name]
+    if selected:
+        objs = selected
+    else:
+        parts = blender_parts.discover_parts(lod=0)
+        objs = list(parts.get(part) or [])
+        if part == "":
+            # fur_shell and fur_fin are the BODY's surface, shelled outwards -- they carry no
+            # cosmetic of their own and inherit the body's, exactly as `variant_parts` makes them
+            # inherit its grade. Leaving them out meant the shell kept showing an unpatterned body
+            # underneath the patterned one, which reads as the pattern "not rendering right".
+            objs += list(parts.get("__derived__") or [])
+    if not objs:
+        parts = blender_parts.discover_parts(lod=0)
+        return False, ("%s is a %s pattern, but no matching mesh part is in the scene (found: %s). "
+                       "Select the mesh you want it applied to and try again -- a selected mesh is "
+                       "used directly, whatever it is named."
+                       % (os.path.basename(fgm_path), part or "body",
+                          ", ".join(sorted(p or "body" for p in parts
+                                           if not p.startswith("__"))) or "none"))
+    try:
+        data = export_pattern.export(fgm_path)
+    except Exception as e:
+        return False, "%s: %s" % (type(e).__name__, e)
+
+    index_map = _pattern_index_map(species_dir, part)
+    done = []
+    for obj in objs:
+        if not obj.data.materials or obj.data.materials[0] is None:
+            return False, "%s has no material yet -- import a variant first" % obj.name
+        mat = obj.data.materials[0]
+        tag = (blender_parts.mesh_part_name(obj) or part or "body").lower()
+        bpn.apply_pattern(mat, data, index_map=index_map, tag=tag)
+        mat["jwe3_pattern_fgm"] = os.path.basename(fgm_path)
+        mat["jwe3_pattern_path"] = os.path.abspath(fgm_path)   # so Reload can find it again
+        done.append("%s (%s)" % (obj.name, mat.name))
+
+    return True, "%s -> %s: %s%s" % (
+        os.path.basename(fgm_path), part or "body", ", ".join(done),
+        "" if index_map else "  -- NO INDEX MAP FOUND, the pattern will read as a flat tint")
+
+
+def reload_patterns():
+    """Re-import every material's recorded pattern .fgm. Returns (ok, message).
+
+    The LUT is BAKED at import -- a 32x3 image built from the FGM's keys -- so editing the .fgm in
+    cobra-tools' FGM editor does not move the preview on its own. This re-reads whatever each
+    material already recorded, which is the whole edit loop: save in cobra-tools, hit Reload.
+
+    Re-importing is safe and in-place: `apply_pattern` unsplices the old group first, and
+    `lut_image` reuses the image datablock by name, so nothing duplicates.
+    """
+    import bpy
+    done, failed = [], []
+    for mat in bpy.data.materials:
+        path = mat.get("jwe3_pattern_path")
+        if not path:
+            continue
+        if not os.path.isfile(path):
+            failed.append("%s: %s is gone" % (mat.name, os.path.basename(path)))
+            continue
+        try:
+            ok, msg = import_pattern(path)
+            (done if ok else failed).append(msg if ok else "%s: %s" % (mat.name, msg))
+        except Exception as e:
+            failed.append("%s: %s: %s" % (mat.name, type(e).__name__, e))
+    if not done and not failed:
+        return False, "no pattern has been imported yet -- File > Import > JWE3 Pattern first"
+    return not failed, "reloaded %d pattern(s)%s" % (
+        len(done), ("; FAILED: " + "; ".join(failed)) if failed else "")
+
+
+def save_pattern(object_name=None, backup=True):
+    """Write the active material's edited ColorRamp back into its pattern .fgm. (ok, message).
+
+    THE AUTHORING LOOP, closed. Until now the ramp was editable but the edits died with the .blend:
+    the FGM was read-only and only cobra-tools could change it.
+
+    Deliberately single-material. One pattern is applied to several parts at once (body, fur_shell,
+    fur_fin each get their own group with its own ramp), so "save every pattern in the scene" would
+    have to pick a winner among ramps that may disagree. The ACTIVE object is an unambiguous answer,
+    and the reload afterwards pushes the saved result back out to all of them.
+
+    The original is re-read from disk rather than taken from the group, so untouched keys keep their
+    exact raw floats and the emissive keys -- which the ramp does not carry at all -- survive.
+    """
+    for p in (_here(), _parent_dir()):
+        if p not in sys.path:
+            sys.path.insert(0, p)
+    import bpy
+    import blender_pattern_nodes as bpn
+    import pattern_io
+    import pattern_writeback
+
+    obj = bpy.context.active_object if object_name is None else bpy.data.objects.get(object_name)
+    if obj is None:
+        return False, "no active object -- select the mesh whose pattern you edited"
+    if not obj.data or not getattr(obj.data, "materials", None) or not obj.data.materials[0]:
+        return False, "%s has no material" % obj.name
+    mat = obj.data.materials[0]
+
+    path = mat.get("jwe3_pattern_path")
+    if not path:
+        return False, "%s has no imported pattern -- File > Import > JWE3 Pattern first" % mat.name
+    if not os.path.isfile(path):
+        return False, "%s is gone; cannot save" % path
+
+    stops = bpn.read_ramp(mat)
+    if not stops:
+        return False, ("%s has no editable ramp. The group only builds one when the pattern has "
+                       "keys, and the Source input must be 1 for it to be what renders." % mat.name)
+
+    try:
+        original = pattern_io.load_pattern_fgm(path)
+        model, report = pattern_writeback.model_from_stops(stops, original)
+    except Exception as e:
+        return False, "%s: %s" % (type(e).__name__, e)
+
+    if backup:
+        bak = path + ".bak"
+        if not os.path.isfile(bak):        # keep the PRISTINE original, never overwrite it
+            shutil.copy2(path, bak)
+
+    try:
+        pattern_io.save_pattern_fgm(model, path)
+    except Exception as e:
+        return False, "save failed: %s: %s" % (type(e).__name__, e)
+
+    # Re-import so the BAKED image path matches the keys just written. Without this the two Source
+    # paths disagree until the next manual reload, and flipping Source would look like a bug.
+    ok, msg = import_pattern(path)
+
+    warn = ""
+    if max(report["colour_error"], report["opacity_error"]) > pattern_writeback.EPS:
+        warn = ("  -- LOSSY: too many stops for the FGM's %d colour / %d opacity slots, worst "
+                "deviation %.4f" % (12, 8, max(report["colour_error"], report["opacity_error"])))
+    return ok, "saved %s (%d colour, %d opacity keys)%s%s" % (
+        os.path.basename(path), report["colour_keys"], report["opacity_keys"], warn,
+        "" if ok else "; reload after save failed: %s" % msg)
+
+
+def _pattern_index_map(species_dir, part):
+    """`u_basePatternMap` (body) or `u_feathersBasePatternMap` (plumage) PNG, or None."""
+    want = "u_feathersbasepatternmap" if part in ("Feathers", "Quills") else "u_basepatternmap"
+    for f in sorted(os.listdir(species_dir)):
+        low = f.lower()
+        if low.endswith(".png") and low.endswith(want + ".png"):
+            return os.path.join(species_dir, f)
+    return None
+
+
+def _part_of_variant(fgm_path):
+    """`(part, slot_index)` if this cosmetic belongs to a NON-body mesh part, else `("", None)`.
+
+    The species folder is the .fgm's own folder -- for a loose file the user picked, that is exactly
+    where its manifest lives. Never raises: an unreadable manifest just means "treat as body", which
+    is the old behaviour.
+    """
+    try:
+        for p in (_here(), _parent_dir(), os.path.join(_here(), "vendor")):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+        import variant_parts
+        part, index = variant_parts.part_for_fgm(os.path.dirname(os.path.abspath(fgm_path)),
+                                                 fgm_path)
+        return (part or ""), index
+    except Exception:
+        return "", None
+
+
+def _import_part_variant(fgm_path, model, part, slot_index):
+    """Grade a NON-body part (feathers/quills) from its own cosmetic .fgm. Returns (ok, message).
+
+    BUILDS the part's material when it is missing, exactly as the body path does -- an import that
+    refuses to build is not an import. What made this awkward before was locating the two inputs
+    `build_feathers` needs; both are now derivable:
+
+      * the part's base .fgm  -> `part_manifest.part_base_fgm` (`<species>_feathers.fgm`, preferring
+        the species-prefixed file over the bare shared one, which leaves the body-space base diffuse
+        as an inline placeholder);
+      * the shared card library -> `part_manifest.fur_library`, the `DinosaurFur` folder found by
+        walking up from the species folder.
+
+    A material that exists but was not built by `build_feathers` is REBUILT rather than graded:
+    cobra-tools' own FGM import leaves a flat stub (`use_nodes = False`), and grading that raised
+    a bare "build the material with build_feathers first".
+    """
+    import variant_parts
+    import part_manifest
+    import blender_feather_nodes as bfn
+    import blender_parts
+    import preview_assets
+    from preview_bridge import model_to_block
+
+    species_dir = os.path.dirname(os.path.abspath(fgm_path))
+    parts = blender_parts.discover_parts(lod=0)
+    objs = parts.get(part) or []
+    if not objs:
+        return False, ("%s is a %s cosmetic, but no %s mesh is in the scene (parts found: %s)"
+                       % (os.path.basename(fgm_path), part, part,
+                          ", ".join(sorted(p for p in parts if not p.startswith("__"))) or "none"))
+
+    graded, built, unresolved = [], [], []
+    for obj in objs:
+        mat = obj.data.materials[0] if obj.data.materials else None
+        if mat is None or "jwe3_albedo_node" not in mat.keys():
+            part_fgm = part_manifest.part_base_fgm(species_dir, part)
+            if not part_fgm:
+                return False, ("%s needs the part's base .fgm (e.g. <species>_%s.fgm) next to the "
+                               "cosmetic in %s, and there is none"
+                               % (obj.name, part_manifest.PART_FGM_TOKEN.get(part, part.lower()),
+                                  species_dir))
+            mat, report = bfn.build_feathers(obj, part_fgm,
+                                             part_manifest.fur_library_dirs(species_dir))
+            built.append(os.path.basename(part_fgm))
+            # BUILD WHAT WE CAN. `build_feathers` already skips a texture it cannot find and keeps
+            # going, so an unresolved slot must not throw the rest away -- a material with five of
+            # its six maps is far more useful than an error. Report the gap instead, naming the
+            # files, so it is obvious which folder is missing rather than silently wrong.
+            if report.get("missing"):
+                unresolved.extend(d for _slot, d in report["missing"])
+        species = preview_assets.species_from_object_name(obj.name) or "Preview"
+        block = model_to_block(model, species=species, sex=None,
+                               variant=slot_index if slot_index is not None else 0)
+        if part in variant_parts.FEATHER_PARTS:
+            bfn.apply_feather_grade(mat, block)
+        else:
+            return False, "no grade path for part %r yet" % part
+        mat["jwe3_variant_fgm"] = os.path.basename(fgm_path)
+        mat["jwe3_variant_path"] = fgm_path
+        mat["jwe3_seed"] = int(block["seed"])
+        mat["jwe3_complexity"] = int(block["complexity"])
+        mat["jwe3_gradient"] = "exact" if block["coeffExact"] else "approximate"
+        if slot_index is not None:
+            mat["jwe3_variant_index"] = slot_index
+        graded.append("%s (%s)" % (obj.name, mat.name))
+
+    msg = "%s -> %s part: %s -- seed %d/%d, gradient %s%s" % (
+        os.path.basename(fgm_path), part, ", ".join(graded),
+        int(model.seed), int(model.complexity),
+        "exact" if block["coeffExact"] else "APPROXIMATE (seed not harvested)",
+        "  [built from %s]" % ", ".join(sorted(set(built))) if built else "")
+    if unresolved:
+        # Partial build, reported rather than hidden: name the files and where we looked, so the
+        # fix (add a folder in the add-on preferences) is obvious.
+        miss = sorted(set(unresolved))
+        msg += ("  -- %d texture(s) NOT FOUND, built without them: %s. Searched %s"
+                % (len(miss), ", ".join(miss[:4]) + (" ..." if len(miss) > 4 else ""),
+                   "; ".join([species_dir] + part_manifest.fur_library_dirs(species_dir))))
+    return True, msg
+
+
 def import_variant(fgm_path, object_name=None):
     """Load a loose variant .fgm and put it on a mesh, in one call. Returns (ok, message).
 
@@ -411,6 +721,15 @@ def import_variant(fgm_path, object_name=None):
 
     model = fgm_io.load_fgm(fgm_path)       # raises a clear error on a layer/base FGM
     fgm_species, fgm_sex = fgm_io.species_sex_from_filename(fgm_path)
+
+    # WHICH PART is this cosmetic for? Ask before doing anything, because a feathers variant and a
+    # body variant are byte-identical in shape (same DinosaurLayered_Variant shader, 144 attributes,
+    # no textures) and everything below assumes the body. Handing this a
+    # `<species>_feathersvariant_NN_NN.fgm` used to build a full 16-layer body stack from it,
+    # overwrite the body material and assign that onto the feathers mesh.
+    part, slot_index = _part_of_variant(fgm_path)
+    if part:
+        return _import_part_variant(fgm_path, model, part, slot_index)
 
     # 1. Pick the target mesh. An explicit name wins; then the active selection if it is a JWE mesh
     #    we recognise (which is what makes "select Baryonyx, import a Spino variant" work); then the
@@ -503,12 +822,47 @@ def _cmd_state(cmd):
     return {"ok": True, "last_import": dict(_last_import)}
 
 
+def _cmd_selected(cmd):
+    """Handle {"cmd": "selected"} -- describe the mesh currently selected in Blender.
+
+    Lets the editor start from what is already in the viewport instead of requiring the user to
+    find the .fgm on disk again. Materials record where they came from (`jwe3_variant_path`), so
+    the editor can simply open that file.
+
+    Reports the object even when it carries no recorded variant: adopting the object name alone is
+    still useful, because a later Build then targets the right mesh.
+    """
+    import bpy
+    sel = [o for o in bpy.context.selected_objects
+           if o.type == "MESH" and "joint_physics" not in o.name]
+    if not sel:
+        return {"ok": False, "error": "nothing selected in Blender -- click the model first"}
+    obj = bpy.context.active_object
+    if obj not in sel:
+        obj = sel[0]
+    mat = None
+    for slot in obj.material_slots:
+        if slot.material is not None:
+            mat = slot.material
+            break
+    info = {"object": obj.name, "material": mat.name if mat else None,
+            "variant_path": None, "variant_fgm": None, "seed": None, "variant_index": None}
+    if mat is not None:
+        for key, prop in (("variant_path", "jwe3_variant_path"), ("variant_fgm", "jwe3_variant_fgm"),
+                          ("seed", "jwe3_seed"), ("variant_index", "jwe3_variant_index")):
+            v = mat.get(prop)
+            if v is not None:
+                info[key] = v
+    return {"ok": True, "selected": info}
+
+
 _HANDLERS = {
     "build": _cmd_build,
     "grade": _cmd_grade,
     "objects": _cmd_objects,
     "ping": _cmd_ping,
     "state": _cmd_state,
+    "selected": _cmd_selected,
 }
 
 
@@ -553,26 +907,40 @@ _ui_classes = []      # operator classes registered with Blender, torn down by u
 
 def _menu_func(self, context):
     self.layout.operator("jwe3.import_variant", text="JWE3 Variant (.fgm)")
+    self.layout.operator("jwe3.import_pattern", text="JWE3 Pattern (.fgm)")
+    self.layout.operator("jwe3.reload_patterns", text="JWE3 Patterns — Reload from disk")
 
 
-def _remove_menu_func():
-    """Strip EVERY copy of our menu entry. `remove` takes one at a time, and a stale duplicate from
-    an earlier registration would otherwise survive and keep showing a second menu item."""
-    import bpy
-    menu = bpy.types.TOPBAR_MT_file_import
+def _export_menu_func(self, context):
+    self.layout.operator("jwe3.save_pattern", text="JWE3 Pattern → .fgm (active material)")
+
+
+def _strip_menu(menu, fn):
+    """Strip EVERY copy of `fn` from `menu`. `remove` takes one at a time, and a stale duplicate
+    from an earlier registration would otherwise survive and keep showing a second menu item."""
     for _ in range(8):                       # bounded: nothing legitimately appends this 8 times
         try:
-            menu.remove(_menu_func)
+            menu.remove(fn)
         except Exception:
             break
     # a reloaded module leaves behind a DIFFERENT function object with the same name, which
     # `remove` cannot match -- find those by name and drop them too
-    for fn in list(getattr(menu, "_dyn_ui_initialize", lambda: [])()):
-        if getattr(fn, "__name__", "") == "_menu_func" and fn is not _menu_func:
+    for other in list(getattr(menu, "_dyn_ui_initialize", lambda: [])()):
+        if getattr(other, "__name__", "") == fn.__name__ and other is not fn:
             try:
-                menu.remove(fn)
+                menu.remove(other)
             except Exception:
                 pass
+
+
+def _remove_menu_func():
+    import bpy
+    _strip_menu(bpy.types.TOPBAR_MT_file_import, _menu_func)
+
+
+def _remove_export_menu_func():
+    import bpy
+    _strip_menu(bpy.types.TOPBAR_MT_file_export, _export_menu_func)
 
 
 def _register_ui():
@@ -585,17 +953,38 @@ def _register_ui():
     import bpy
 
     class JWE3VariantPrefs(bpy.types.AddonPreferences):
-        bl_idname = __name__
+        bl_idname = ADDON_ID or __name__
 
-        def _write_swatch(self, _context):
-            """Mirror the picked folder into the shared config, so the desktop editor and the
+        def _save(self, key, value):
+            """Mirror a picked folder into the shared config, so the desktop editor and the
             harvesting tools use the same one rather than each keeping its own idea."""
             try:
                 sys.path.insert(0, _here())
                 import jwe3_config
-                jwe3_config.write(swatch_dir=bpy.path.abspath(self.swatch_dir) or None)
+                jwe3_config.write(**{key: value or None})
             except Exception as e:
-                print("JWE3 Variant Tools: could not save swatch_dir:", e)
+                print("JWE3 Variant Tools: could not save %s:" % key, e)
+
+        def _write_swatch(self, _context):
+            self._save("swatch_dir", bpy.path.abspath(self.swatch_dir) or None)
+
+        def _write_fur(self, _context):
+            """Both fields feed the ONE `fur_library` setting, which is os.pathsep-separated.
+
+            The picker can only choose a single folder, so it writes the first entry and the free
+            text field supplies any others. Joining here rather than adding a second config key
+            keeps one list for every consumer (`jwe3_config.get_dirs("fur_library")`) -- the desktop
+            editor and the harvesting tools read the same setting.
+
+            The text field must NOT go through `bpy.path.abspath`: it is a LIST, and that would
+            mangle the separators into one nonsense path.
+            """
+            first = bpy.path.abspath(self.fur_library) if self.fur_library else ""
+            rest = (self.extra_dirs or "").strip()
+            joined = os.pathsep.join([p for p in (first.strip(), rest) if p])
+            self._save("fur_library", joined or None)
+
+        _write_extra = _write_fur
 
         swatch_dir: bpy.props.StringProperty(
             name="Swatch Library folder",
@@ -605,6 +994,23 @@ def _register_ui():
             default="",
             update=_write_swatch)
 
+        fur_library: bpy.props.StringProperty(
+            name="DinosaurFur folder",
+            description="The shared feather/fur card textures (feathers.pfeathers_*). Normally "
+                        "found automatically by looking for a DinosaurFur folder above the "
+                        "species you are importing -- set this only if yours lives elsewhere",
+            subtype="DIR_PATH",
+            default="",
+            update=_write_fur)
+
+        extra_dirs: bpy.props.StringProperty(
+            name="Extra texture folders",
+            description="Additional folders to search for shared textures, separated by "
+                        "'%s'. Searched after the species folder and the DinosaurFur folder, in "
+                        "the order given" % os.pathsep,
+            default="",
+            update=_write_extra)
+
         def draw(self, context):
             col = self.layout.column()
             if _assets_reachable():
@@ -613,11 +1019,23 @@ def _register_ui():
                 col.label(text="Incomplete install — install the whole folder/zip, not a single "
                                ".py file", icon="ERROR")
             col.prop(self, "swatch_dir")
+            col.prop(self, "fur_library")
+            col.prop(self, "extra_dirs")
             try:
                 sys.path.insert(0, _here())
                 import jwe3_config
                 for key in jwe3_config.KEYS:
-                    value, src = jwe3_config.get(key), jwe3_config.source(key)
+                    src = jwe3_config.source(key)
+                    # a MULTI setting can name several folders; show them all, one per line, or the
+                    # single value collapses to "the first one" and a second folder looks ignored
+                    if key in jwe3_config.MULTI:
+                        dirs = jwe3_config.get_dirs(key)
+                        col.label(text="%s: %d folder(s)  [%s]" % (key, len(dirs), src),
+                                  icon="CHECKMARK" if dirs else "ERROR")
+                        for d in dirs:
+                            col.label(text="        " + d)
+                        continue
+                    value = jwe3_config.get(key)
                     col.label(text="%s: %s  [%s]" % (key, value or "not found", src),
                               icon="CHECKMARK" if value else "ERROR")
                 games = jwe3_config.detect_game_dirs()
@@ -626,6 +1044,19 @@ def _register_ui():
                                    "run setup_gui.py to choose" % len(games), icon="INFO")
             except Exception as e:
                 col.label(text="config unavailable: %s" % e, icon="ERROR")
+
+    # Drop any JWE3VariantPrefs left over from an earlier registration before adding this one.
+    # Re-running register() without a matching unregister -- a reload during development, or an
+    # enable while a previous registration lingers -- leaves the OLD class registered, and Blender
+    # resolves preferences by bl_idname against whatever it finds. That is how the panel ended up
+    # drawing nothing: three stale classes all carrying the pre-fix bl_idname ("blender_listener")
+    # shadowed the correct one, and `addons["VariantEditor"].preferences` stayed None.
+    for _old in [c for c in bpy.types.AddonPreferences.__subclasses__()
+                 if c.__name__ == "JWE3VariantPrefs" and c is not JWE3VariantPrefs]:
+        try:
+            bpy.utils.unregister_class(_old)
+        except Exception:
+            pass        # already dead: a stale class object with no bl_rna, nothing to remove
 
     bpy.utils.register_class(JWE3VariantPrefs)
     _ui_classes.append(JWE3VariantPrefs)
@@ -655,6 +1086,182 @@ def _register_ui():
     bpy.utils.register_class(JWE3_OT_import_variant)
     _ui_classes.append(JWE3_OT_import_variant)
 
+    class JWE3_OT_import_pattern(bpy.types.Operator):
+        """Load a JWE3 pattern .fgm and splice it over the target part's material"""
+        bl_idname = "jwe3.import_pattern"
+        bl_label = "Import JWE3 Pattern"
+        bl_options = {"REGISTER", "UNDO"}
+
+        filepath: bpy.props.StringProperty(subtype="FILE_PATH")
+        filter_glob: bpy.props.StringProperty(default="*.fgm", options={"HIDDEN"})
+
+        def invoke(self, context, event):
+            context.window_manager.fileselect_add(self)
+            return {"RUNNING_MODAL"}
+
+        def execute(self, context):
+            try:
+                ok, msg = import_pattern(self.filepath)
+            except Exception as e:
+                self.report({"ERROR"}, "%s: %s" % (type(e).__name__, e))
+                return {"CANCELLED"}
+            self.report({"INFO"} if ok else {"ERROR"}, msg)
+            return {"FINISHED"} if ok else {"CANCELLED"}
+
+    bpy.utils.register_class(JWE3_OT_import_pattern)
+    _ui_classes.append(JWE3_OT_import_pattern)
+
+    class JWE3_OT_reload_patterns(bpy.types.Operator):
+        """Re-read every imported pattern .fgm from disk -- use after editing one in cobra-tools"""
+        bl_idname = "jwe3.reload_patterns"
+        bl_label = "Reload JWE3 Patterns"
+        bl_options = {"REGISTER", "UNDO"}
+
+        def execute(self, context):
+            try:
+                ok, msg = reload_patterns()
+            except Exception as e:
+                self.report({"ERROR"}, "%s: %s" % (type(e).__name__, e))
+                return {"CANCELLED"}
+            self.report({"INFO"} if ok else {"ERROR"}, msg)
+            return {"FINISHED"} if ok else {"CANCELLED"}
+
+    bpy.utils.register_class(JWE3_OT_reload_patterns)
+    _ui_classes.append(JWE3_OT_reload_patterns)
+
+    class JWE3_OT_save_pattern(bpy.types.Operator):
+        """Write the active material's edited pattern ramp back into its .fgm (keeps a .bak)"""
+        bl_idname = "jwe3.save_pattern"
+        bl_label = "Save JWE3 Pattern to .fgm"
+        bl_options = {"REGISTER"}      # NOT UNDO: this writes a file, which undo cannot reverse
+
+        def execute(self, context):
+            try:
+                ok, msg = save_pattern()
+            except Exception as e:
+                self.report({"ERROR"}, "%s: %s" % (type(e).__name__, e))
+                return {"CANCELLED"}
+            self.report({"INFO"} if ok else {"ERROR"}, msg)
+            return {"FINISHED"} if ok else {"CANCELLED"}
+
+    bpy.utils.register_class(JWE3_OT_save_pattern)
+    _ui_classes.append(JWE3_OT_save_pattern)
+
+    # ---------------------------------------------------------------- variant panel
+    #
+    # `variant_parts.apply_variant_all` grades EVERY part (body, fur_shell, fur_fin, feathers) from
+    # each part's own variant FGM. It was previously only reachable by typing a call with a
+    # hard-coded species path into the Python console, which is not something a second user can do.
+    #
+    # A sidebar panel rather than a File > Import entry, because the common action is flipping
+    # BETWEEN variants to compare them -- a one-shot file dialog makes you re-pick the folder every
+    # time. The folder is remembered on the Scene, so it survives save/reload.
+
+    def _variant_items(self, context):
+        """Scan the species folder for `*_variant_01_NN.fgm` and offer those indices.
+
+        Falls back to 0-11 when the folder is unset or unreadable: an empty enum makes the whole
+        panel undraggable and looks like a broken add-on, which is worse than offering too many.
+        """
+        import glob
+        d = (context.scene.jwe3_species_dir or "").strip()
+        found = []
+        if d and os.path.isdir(bpy.path.abspath(d)):
+            for p in glob.glob(os.path.join(bpy.path.abspath(d), "*_variant_??_??.fgm")):
+                stem = os.path.splitext(os.path.basename(p))[0]
+                tail = stem.rsplit("_", 1)[-1]
+                if tail.isdigit():
+                    found.append(int(tail))
+        found = sorted(set(found)) or list(range(12))
+        return [(str(i), "%02d" % i, "Cosmetic slot %d" % i) for i in found]
+
+    bpy.types.Scene.jwe3_species_dir = bpy.props.StringProperty(
+        name="Species", subtype="DIR_PATH",
+        description="Folder holding the variant FGMs and the .dinosaurmaterialvariants manifest. "
+                    "Use the copy WITH the manifest -- a pristine extraction has none, and the "
+                    "part each variant belongs to cannot be resolved without it")
+    bpy.types.Scene.jwe3_variant_index = bpy.props.EnumProperty(
+        name="Variant", items=_variant_items, description="Cosmetic slot to apply")
+    bpy.types.Scene.jwe3_seed_override = bpy.props.StringProperty(
+        name="Seed", default="",
+        description="Optional. Substitute this seed for the FGM's own. An unharvested seed has no "
+                    "coefficients and grades FLAT, which looks identical to ungraded -- "
+                    "substituting a harvested one makes the palette visible. NOT what the game "
+                    "renders; both seeds are recorded on the material")
+    bpy.types.Scene.jwe3_last_report = bpy.props.StringProperty(name="Last result", default="")
+
+    class JWE3_OT_apply_variant_all(bpy.types.Operator):
+        """Grade every part (body, fur shell, fur fin, feathers) from its own variant FGM"""
+        bl_idname = "jwe3.apply_variant_all"
+        bl_label = "Apply to All Parts"
+        bl_options = {"REGISTER", "UNDO"}
+
+        @classmethod
+        def poll(cls, context):
+            return bool((context.scene.jwe3_species_dir or "").strip())
+
+        def execute(self, context):
+            sc = context.scene
+            d = bpy.path.abspath(sc.jwe3_species_dir).rstrip("\\/")
+            if not os.path.isdir(d):
+                self.report({"ERROR"}, "Not a folder: %s" % d)
+                return {"CANCELLED"}
+            seed = None
+            raw = (sc.jwe3_seed_override or "").strip()
+            if raw:
+                if not raw.isdigit():
+                    self.report({"ERROR"}, "Seed override must be a whole number, got %r" % raw)
+                    return {"CANCELLED"}
+                seed = int(raw)
+            try:
+                import variant_parts
+                rep = variant_parts.apply_variant_all(d, int(sc.jwe3_variant_index),
+                                                      seed_override=seed)
+            except Exception as e:
+                sc.jwe3_last_report = "%s: %s" % (type(e).__name__, e)
+                self.report({"ERROR"}, sc.jwe3_last_report)
+                return {"CANCELLED"}
+            graded = rep.get("graded") or []
+            skipped = rep.get("skipped") or []
+            sc.jwe3_last_report = "%d graded, %d skipped" % (len(graded), len(skipped))
+            # A skipped part is NOT cosmetic: fur_shell and fur_fin OCCLUDE the body almost
+            # completely, so an ungraded one silently shows the raw base texture and every colour
+            # judgement made against it is wrong. Say so loudly rather than reporting success.
+            if skipped:
+                self.report({"WARNING"}, "%s -- skipped: %s" % (sc.jwe3_last_report, skipped))
+            else:
+                self.report({"INFO"}, sc.jwe3_last_report)
+            return {"FINISHED"}
+
+    bpy.utils.register_class(JWE3_OT_apply_variant_all)
+    _ui_classes.append(JWE3_OT_apply_variant_all)
+
+    class JWE3_PT_variants(bpy.types.Panel):
+        bl_label = "JWE3 Variants"
+        bl_idname = "VIEW3D_PT_jwe3_variants"
+        bl_space_type = "VIEW_3D"
+        bl_region_type = "UI"
+        bl_category = "JWE3"
+
+        def draw(self, context):
+            sc = context.scene
+            col = self.layout.column(align=True)
+            col.prop(sc, "jwe3_species_dir")
+            row = col.row(align=True)
+            row.prop(sc, "jwe3_variant_index")
+            row.prop(sc, "jwe3_seed_override")
+            col.separator()
+            col.operator("jwe3.apply_variant_all", icon="MATERIAL")
+            if sc.jwe3_last_report:
+                col.separator()
+                col.label(text=sc.jwe3_last_report, icon="INFO")
+
+    bpy.utils.register_class(JWE3_PT_variants)
+    _ui_classes.append(JWE3_PT_variants)
+
+    _remove_export_menu_func()
+    bpy.types.TOPBAR_MT_file_export.append(_export_menu_func)
+
     # Append ONCE. `append` does not deduplicate, so registering twice -- a reload during
     # development, or an enable while a previous registration lingers -- puts two identical
     # "JWE3 Variant (.fgm)" entries in the File > Import menu. Drop any existing copy first.
@@ -665,6 +1272,16 @@ def _register_ui():
 def _unregister_ui():
     import bpy
     _remove_menu_func()
+    _remove_export_menu_func()
+    # Scene properties are NOT owned by a class, so unregistering the panel leaves them behind.
+    # A stale EnumProperty whose items callback has been unloaded throws on every redraw of the
+    # Properties editor, which looks like Blender itself breaking.
+    for _prop in ("jwe3_species_dir", "jwe3_variant_index", "jwe3_seed_override",
+                  "jwe3_last_report"):
+        try:
+            delattr(bpy.types.Scene, _prop)
+        except Exception:
+            pass
     while _ui_classes:
         try:
             bpy.utils.unregister_class(_ui_classes.pop())
@@ -679,8 +1296,20 @@ def register():
     _server_thread.start()
 
     import bpy
+    # persistent=True is REQUIRED. Blender unregisters non-persistent timers whenever a file is
+    # loaded -- including File > New. The socket thread survives (it is a plain daemon thread and
+    # knows nothing about scenes), so it carries on accepting connections and queueing commands
+    # that nothing ever drains: the editor then hangs on connect with no error anywhere. Symptom
+    # is "the bridge stops working after File > New", cause is one missing keyword.
     if not bpy.app.timers.is_registered(_drain_queue):
-        bpy.app.timers.register(_drain_queue, first_interval=DRAIN_INTERVAL)
+        bpy.app.timers.register(_drain_queue, first_interval=DRAIN_INTERVAL, persistent=True)
+
+    # Cached datablocks do NOT survive a file load, and a freed one is not None -- it is a dead
+    # StructRNA that raises ReferenceError on first touch, sailing straight past `is None` guards.
+    # Clear them when a new file is loaded. @persistent or the handler removes itself on the very
+    # first load, which is the one that matters.
+    if _on_load_post not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_on_load_post)
 
     _register_ui()      # preferences + File > Import > JWE3 Variant (.fgm)
 
@@ -700,6 +1329,12 @@ def unregister():
     _unregister_ui()
     if bpy.app.timers.is_registered(_drain_queue):
         bpy.app.timers.unregister(_drain_queue)
+
+    try:
+        if _on_load_post in bpy.app.handlers.load_post:
+            bpy.app.handlers.load_post.remove(_on_load_post)
+    except Exception:
+        pass
 
     _stop_event.set()
     if _server_sock is not None:

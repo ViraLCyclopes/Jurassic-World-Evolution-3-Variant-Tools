@@ -38,6 +38,17 @@ import blender_listener  # noqa: E402
 
 
 def register():
+    # Tell the listener the ADD-ON's module name before it builds its preferences class.
+    #
+    # Blender matches `AddonPreferences.bl_idname` against the name of the add-on module -- this
+    # package. `blender_listener` is imported FLAT (its folder is on sys.path, above), so its own
+    # `__name__` is just "blender_listener" and never matched: the preferences panel silently did
+    # not render at all, and there was no way to set the texture folders from inside Blender.
+    #
+    # `__name__` here is whatever Blender loaded the add-on as -- "VariantEditor" for a normal
+    # install, "bl_ext.user_default.VariantEditor" when installed as an extension -- so passing it
+    # through is correct for both.
+    blender_listener.ADDON_ID = __name__
     blender_listener.register()
 
 

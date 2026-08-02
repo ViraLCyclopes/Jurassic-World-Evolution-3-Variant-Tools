@@ -66,11 +66,30 @@ def detect_mask_prefix(folder):
 def mask_dir_for(species):
     """Folder holding a species' masks, or None.
 
-    Matches `Textures/<Species>` case-insensitively, then falls back to an abbreviated folder name
+    Resolution order:
+
+      1. the CONFIGURED texture folder (editor UI: Textures > Browse), stored by
+         `jwe3_config.set_textures_dir`. One folder, repointed as you move between species. This is
+         the supported mechanism -- texture sets are large and user-extracted, and belong wherever
+         the user keeps them, not inside the install;
+      2. LEGACY: `Textures/<Species>` inside the install. That folder ships EMPTY and exists only so
+         an existing setup keeps working. Nothing should be copied into it any more; it can be
+         dropped once no one is relying on it.
+
+    The legacy scan matches case-insensitively, then falls back to an abbreviated folder name
     (`Loki` -> Lokiceratops, `Psittaco` -> Psittacosaurus), longest match first. Users name these
     folders by hand, so exact-match-only was too brittle.
     """
-    if not species or not os.path.isdir(TEXTURES_DIR):
+    if not species:
+        return None
+    try:
+        import jwe3_config
+        configured = jwe3_config.textures_dir()
+    except Exception:
+        configured = None          # config is optional; never let it break preview resolution
+    if configured:
+        return configured
+    if not os.path.isdir(TEXTURES_DIR):
         return None
     dirs = [d for d in sorted(os.listdir(TEXTURES_DIR))
             if os.path.isdir(os.path.join(TEXTURES_DIR, d))]
@@ -86,11 +105,20 @@ def mask_dir_for(species):
 
 
 def preview_paths(species, sex=None):
-    """(mask_dir, mask_prefix, layers_json) for a species, or None if it can't be previewed."""
+    """(mask_dir, mask_prefix, layers_json) for a species, or None if it can't be previewed.
+
+    The prefix is READ OFF THE FILES, never derived from the folder name. It used to be
+    `basename(mask_dir).lower()`, which worked only while masks lived in `Textures/<Species>` --
+    point it at a real extraction like `.../Baryonyx/Female` and the prefix became "female", so no
+    mask matched and `build` wired nothing at all, silently. `detect_mask_prefix` existed for
+    exactly this and was not being called.
+
+    The folder name stays as a last resort, for a folder that holds a LayerJSON but no masks.
+    """
     md, lj = mask_dir_for(species), layers_json_for(species, sex)
     if md is None or lj is None:
         return None
-    return md, os.path.basename(md).lower(), lj
+    return md, (detect_mask_prefix(md) or os.path.basename(md).lower()), lj
 
 
 def generate_layers_json(species, sex="Female", folder=None):
@@ -303,13 +331,25 @@ def selftest():
     assert sex_from_object_name("baryonyx_female_ob0_L0") == "Female"
     assert sex_from_object_name("baryonyx_ob0_L0") is None
 
-    # abbreviated texture folders must still resolve (users name these by hand)
-    psi = mask_dir_for("Psittacosaurus")
-    if psi:
-        assert os.path.basename(psi) == "Psittaco", psi
-    loki = mask_dir_for("Lokiceratops")
-    if loki:
-        assert os.path.basename(loki) in ("Loki", "Lokiceratops"), loki
+    # Abbreviated texture folders must still resolve (users name these by hand). These exercise the
+    # LEGACY `Textures/<Species>` scan, so the configured folder has to be out of the way -- it
+    # answers for every species and would mask the thing under test. Isolate via a throwaway config
+    # dir rather than clearing the real setting, which would edit the developer's own config.
+    import tempfile
+    _old_cfg = os.environ.get("JWE3_CONFIG_DIR")
+    os.environ["JWE3_CONFIG_DIR"] = tempfile.mkdtemp()
+    try:
+        psi = mask_dir_for("Psittacosaurus")
+        if psi:
+            assert os.path.basename(psi) == "Psittaco", psi
+        loki = mask_dir_for("Lokiceratops")
+        if loki:
+            assert os.path.basename(loki) in ("Loki", "Lokiceratops"), loki
+    finally:
+        if _old_cfg is None:
+            os.environ.pop("JWE3_CONFIG_DIR", None)
+        else:
+            os.environ["JWE3_CONFIG_DIR"] = _old_cfg
 
     # the mask prefix MUST come off the files, not the species name: Baryonyx uses "baryonyx"
     # but Psittacosaurus uses "psittacosaurus_female"

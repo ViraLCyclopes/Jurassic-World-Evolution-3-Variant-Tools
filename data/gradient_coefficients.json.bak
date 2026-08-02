@@ -1,0 +1,1532 @@
+{
+ "29_3": {
+  "seed": 29,
+  "complexity": 3,
+  "gradOffset": [
+   396,
+   405,
+   212
+  ],
+  "gradAmplitude": [
+   130,
+   187,
+   230
+  ],
+  "gradFreq": [
+   204,
+   204,
+   51
+  ],
+  "gradPhase": [
+   511,
+   66,
+   59
+  ],
+  "from": [
+   "Albertosaurus_Juvenile.ovl",
+   "albertosaurus_juvenile_variant_01_04.fgm"
+  ],
+  "capture": "JWE3_2026.07.20_12.20_frame14499.rdc",
+  "offset": 228062360
+ },
+ "24_1": {
+  "seed": 24,
+  "complexity": 1,
+  "gradOffset": [
+   250,
+   182,
+   256
+  ],
+  "gradAmplitude": [
+   222,
+   213,
+   128
+  ],
+  "gradFreq": [
+   51,
+   102,
+   102
+  ],
+  "gradPhase": [
+   26,
+   411,
+   28
+  ],
+  "from": [
+   "GiganotosaurusJW_Female.ovl",
+   "giganotosaurusjw_variant_01_06.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame39981.rdc",
+  "offset": 338950816
+ },
+ "30_5": {
+  "seed": 30,
+  "complexity": 5,
+  "gradOffset": [
+   192,
+   -128,
+   -97
+  ],
+  "gradAmplitude": [
+   307,
+   307,
+   307
+  ],
+  "gradFreq": [
+   20,
+   476,
+   497
+  ],
+  "gradPhase": [
+   0,
+   15,
+   0
+  ],
+  "from": [
+   "Chasmosaurus_Female.ovl",
+   "chasmosaurus_variant_01_08.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1580882.rdc",
+  "offset": 1186335448
+ },
+ "5_2": {
+  "seed": 5,
+  "complexity": 2,
+  "gradOffset": [
+   304,
+   255,
+   402
+  ],
+  "gradAmplitude": [
+   254,
+   181,
+   144
+  ],
+  "gradFreq": [
+   153,
+   153,
+   51
+  ],
+  "gradPhase": [
+   434,
+   438,
+   495
+  ],
+  "from": [
+   "Atrociraptor_Female.ovl",
+   "atrociraptor_variant_01_06.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame39981.rdc",
+  "offset": 674497732
+ },
+ "66_1": {
+  "seed": 66,
+  "complexity": 1,
+  "gradOffset": [
+   190,
+   253,
+   297
+  ],
+  "gradAmplitude": [
+   144,
+   167,
+   148
+  ],
+  "gradFreq": [
+   102,
+   102,
+   102
+  ],
+  "gradPhase": [
+   200,
+   402,
+   456
+  ],
+  "from": [
+   "AnkylosaurusJWE.ovl",
+   "ankylosaurus_variant_01_07.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame39981.rdc",
+  "offset": 674499836
+ },
+ "128_2": {
+  "seed": 128,
+  "complexity": 2,
+  "gradOffset": [
+   257,
+   381,
+   402
+  ],
+  "gradAmplitude": [
+   171,
+   164,
+   221
+  ],
+  "gradFreq": [
+   153,
+   51,
+   153
+  ],
+  "gradPhase": [
+   204,
+   169,
+   9
+  ],
+  "from": [
+   "Apatosaurus_Female.ovl",
+   "apatosaurus_variant_01_04.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1520310.rdc",
+  "offset": 1122465224
+ },
+ "36_2": {
+  "seed": 36,
+  "complexity": 2,
+  "gradOffset": [
+   408,
+   258,
+   192
+  ],
+  "gradAmplitude": [
+   139,
+   167,
+   204
+  ],
+  "gradFreq": [
+   51,
+   153,
+   153
+  ],
+  "gradPhase": [
+   157,
+   132,
+   508
+  ],
+  "from": [
+   "Baryonyx_Female.ovl",
+   "baryonyx_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame39981.rdc",
+  "offset": 1104277364
+ },
+ "76_2": {
+  "seed": 76,
+  "complexity": 2,
+  "gradOffset": [
+   366,
+   406,
+   368
+  ],
+  "gradAmplitude": [
+   208,
+   131,
+   255
+  ],
+  "gradFreq": [
+   153,
+   153,
+   51
+  ],
+  "gradPhase": [
+   205,
+   155,
+   181
+  ],
+  "from": [
+   "Baryonyx_Female.ovl",
+   "baryonyx_variant_01_01.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame39981.rdc",
+  "offset": 1104277428
+ },
+ "72_1": {
+  "seed": 72,
+  "complexity": 1,
+  "gradOffset": [
+   346,
+   378,
+   321
+  ],
+  "gradAmplitude": [
+   128,
+   150,
+   128
+  ],
+  "gradFreq": [
+   102,
+   51,
+   51
+  ],
+  "gradPhase": [
+   121,
+   184,
+   342
+  ],
+  "from": [
+   "Baryonyx_Female.ovl",
+   "baryonyx_variant_01_02.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame39981.rdc",
+  "offset": 1104277484
+ },
+ "35_1": {
+  "seed": 35,
+  "complexity": 1,
+  "gradOffset": [
+   182,
+   250,
+   221
+  ],
+  "gradAmplitude": [
+   128,
+   236,
+   228
+  ],
+  "gradFreq": [
+   51,
+   51,
+   51
+  ],
+  "gradPhase": [
+   2,
+   0,
+   488
+  ],
+  "from": [
+   "Baryonyx_Female.ovl",
+   "baryonyx_variant_01_05.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame39981.rdc",
+  "offset": 1104277668
+ },
+ "174_8": {
+  "seed": 174,
+  "complexity": 8,
+  "gradOffset": [
+   174,
+   254,
+   164
+  ],
+  "gradAmplitude": [
+   186,
+   240,
+   187
+  ],
+  "gradFreq": [
+   51,
+   460,
+   460
+  ],
+  "gradPhase": [
+   54,
+   68,
+   27
+  ],
+  "from": [
+   "Austroraptor_Female.ovl",
+   "austroraptor_feathers_variant_01_06.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1520310.rdc",
+  "offset": 220759948
+ },
+ "30_1": {
+  "seed": 30,
+  "complexity": 1,
+  "gradOffset": [
+   396,
+   231,
+   203
+  ],
+  "gradAmplitude": [
+   211,
+   128,
+   128
+  ],
+  "gradFreq": [
+   102,
+   102,
+   102
+  ],
+  "gradPhase": [
+   20,
+   476,
+   497
+  ],
+  "from": [
+   "GiganotosaurusJW_Female.ovl",
+   "giganotosaurusjw_variant_01_02.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1520310.rdc",
+  "offset": 223028044
+ },
+ "125_1": {
+  "seed": 125,
+  "complexity": 1,
+  "gradOffset": [
+   109,
+   234,
+   140
+  ],
+  "gradAmplitude": [
+   248,
+   252,
+   243
+  ],
+  "gradFreq": [
+   102,
+   51,
+   102
+  ],
+  "gradPhase": [
+   374,
+   441,
+   1
+  ],
+  "from": [
+   "GiganotosaurusJW_Female.ovl",
+   "giganotosaurusjw_variant_01_03.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1520310.rdc",
+  "offset": 223028108
+ },
+ "86_5": {
+  "seed": 86,
+  "complexity": 5,
+  "gradOffset": [
+   392,
+   358,
+   250
+  ],
+  "gradAmplitude": [
+   128,
+   165,
+   175
+  ],
+  "gradFreq": [
+   307,
+   307,
+   307
+  ],
+  "gradPhase": [
+   12,
+   121,
+   474
+  ],
+  "from": [
+   "Atrociraptor_Female.ovl",
+   "atrociraptor_variant_01_08.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1580882.rdc",
+  "offset": 1159713020
+ },
+ "187_1": {
+  "seed": 187,
+  "complexity": 1,
+  "gradOffset": [
+   115,
+   225,
+   172
+  ],
+  "gradAmplitude": [
+   243,
+   129,
+   136
+  ],
+  "gradFreq": [
+   51,
+   102,
+   102
+  ],
+  "gradPhase": [
+   36,
+   45,
+   419
+  ],
+  "from": [
+   "AnkylosaurusJWE.ovl",
+   "ankylosaurus_variant_01_10.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1520310.rdc",
+  "offset": 1134351032
+ },
+ "30_2": {
+  "seed": 30,
+  "complexity": 2,
+  "gradOffset": [
+   396,
+   231,
+   203
+  ],
+  "gradAmplitude": [
+   211,
+   128,
+   128
+  ],
+  "gradFreq": [
+   153,
+   153,
+   153
+  ],
+  "gradPhase": [
+   20,
+   476,
+   497
+  ],
+  "from": [
+   "Baryonyx_Female.ovl",
+   "baryonyx_variant_01_06.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1580882.rdc",
+  "offset": 1167226872
+ },
+ "9_10": {
+  "seed": 9,
+  "complexity": 10,
+  "gradOffset": [
+   104,
+   256,
+   408
+  ],
+  "gradAmplitude": [
+   181,
+   211,
+   167
+  ],
+  "gradFreq": [
+   51,
+   511,
+   511
+  ],
+  "gradPhase": [
+   256,
+   192,
+   482
+  ],
+  "from": [
+   "Lokiceratops_Female.ovl",
+   "lokiceratops_variant_01_10.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1520310.rdc",
+  "offset": 1191600900
+ },
+ "25_2": {
+  "seed": 25,
+  "complexity": 2,
+  "gradOffset": [
+   239,
+   408,
+   405
+  ],
+  "gradAmplitude": [
+   147,
+   176,
+   161
+  ],
+  "gradFreq": [
+   153,
+   51,
+   153
+  ],
+  "gradPhase": [
+   321,
+   446,
+   4
+  ],
+  "from": [
+   "CarnotaurusJWE.ovl",
+   "carnotaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1580882.rdc",
+  "offset": 734004664
+ },
+ "129_3": {
+  "seed": 129,
+  "complexity": 3,
+  "gradOffset": [
+   260,
+   273,
+   185
+  ],
+  "gradAmplitude": [
+   224,
+   135,
+   186
+  ],
+  "gradFreq": [
+   51,
+   204,
+   51
+  ],
+  "gradPhase": [
+   444,
+   3,
+   336
+  ],
+  "from": [
+   "Apatosaurus_Female.ovl",
+   "apatosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1580882.rdc",
+  "offset": 1138893092
+ },
+ "27_1": {
+  "seed": 27,
+  "complexity": 1,
+  "gradOffset": [
+   256,
+   133,
+   319
+  ],
+  "gradAmplitude": [
+   131,
+   133,
+   134
+  ],
+  "gradFreq": [
+   51,
+   51,
+   102
+  ],
+  "gradPhase": [
+   1,
+   18,
+   33
+  ],
+  "from": [
+   "Concavenator_Female.ovl",
+   "concavenator_variant_01_06.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1580882.rdc",
+  "offset": 1190822876
+ },
+ "45_1": {
+  "seed": 45,
+  "complexity": 1,
+  "gradOffset": [
+   242,
+   212,
+   346
+  ],
+  "gradAmplitude": [
+   213,
+   144,
+   150
+  ],
+  "gradFreq": [
+   102,
+   102,
+   102
+  ],
+  "gradPhase": [
+   32,
+   18,
+   406
+  ],
+  "from": [
+   "Concavenator_Female.ovl",
+   "concavenator_variant_01_08.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1580882.rdc",
+  "offset": 1190822964
+ },
+ "54_5": {
+  "seed": 54,
+  "complexity": 5,
+  "gradOffset": [
+   319,
+   378,
+   103
+  ],
+  "gradAmplitude": [
+   227,
+   134,
+   134
+  ],
+  "gradFreq": [
+   307,
+   51,
+   307
+  ],
+  "gradPhase": [
+   475,
+   100,
+   145
+  ],
+  "from": [
+   "Lokiceratops_Female.ovl",
+   "lokiceratops_variant_01_02.fgm"
+  ],
+  "capture": "JWE3_2026.07.24_20.54_frame1580882.rdc",
+  "offset": 1207917268
+ },
+ "196_1": {
+  "seed": 196,
+  "complexity": 1,
+  "gradOffset": [
+   188,
+   153,
+   256
+  ],
+  "gradAmplitude": [
+   255,
+   255,
+   130
+  ],
+  "gradFreq": [
+   51,
+   102,
+   102
+  ],
+  "gradPhase": [
+   269,
+   486,
+   116
+  ],
+  "from": [
+   "Dryosaurus_Female.ovl",
+   "dryosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_14.01_frame38550.rdc",
+  "offset": 650547736
+ },
+ "91_1": {
+  "seed": 91,
+  "complexity": 1,
+  "gradOffset": [
+   255,
+   341,
+   257
+  ],
+  "gradAmplitude": [
+   153,
+   213,
+   160
+  ],
+  "gradFreq": [
+   102,
+   51,
+   102
+  ],
+  "gradPhase": [
+   8,
+   174,
+   472
+  ],
+  "from": [
+   "Struthiomimus_Female.ovl",
+   "struthiomimus_variant_01_03.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_14.01_frame107553.rdc",
+  "offset": 1056376012
+ },
+ "11_1": {
+  "seed": 11,
+  "complexity": 1,
+  "gradOffset": [
+   305,
+   348,
+   133
+  ],
+  "gradAmplitude": [
+   161,
+   252,
+   239
+  ],
+  "gradFreq": [
+   51,
+   51,
+   102
+  ],
+  "gradPhase": [
+   446,
+   19,
+   205
+  ],
+  "from": [
+   "Stygimoloch_Male.ovl",
+   "stygimoloch_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 182644936
+ },
+ "55_1": {
+  "seed": 55,
+  "complexity": 1,
+  "gradOffset": [
+   229,
+   190,
+   375
+  ],
+  "gradAmplitude": [
+   234,
+   208,
+   228
+  ],
+  "gradFreq": [
+   51,
+   51,
+   102
+  ],
+  "gradPhase": [
+   483,
+   91,
+   16
+  ],
+  "from": [
+   "Sinoceratops_Male.ovl",
+   "sinoceratops_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 185613104
+ },
+ "15_1": {
+  "seed": 15,
+  "complexity": 1,
+  "gradOffset": [
+   256,
+   307,
+   110
+  ],
+  "gradAmplitude": [
+   198,
+   139,
+   133
+  ],
+  "gradFreq": [
+   102,
+   51,
+   102
+  ],
+  "gradPhase": [
+   66,
+   412,
+   63
+  ],
+  "from": [
+   "Chasmosaurus_Male.ovl",
+   "chasmosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame185033.rdc",
+  "offset": 357407076
+ },
+ "57_1": {
+  "seed": 57,
+  "complexity": 1,
+  "gradOffset": [
+   203,
+   158,
+   227
+  ],
+  "gradAmplitude": [
+   167,
+   128,
+   247
+  ],
+  "gradFreq": [
+   102,
+   102,
+   102
+  ],
+  "gradPhase": [
+   160,
+   9,
+   462
+  ],
+  "from": [
+   "Metriacanthosaurus_Male.ovl",
+   "metriacanthosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame185033.rdc",
+  "offset": 365716560
+ },
+ "12_1": {
+  "seed": 12,
+  "complexity": 1,
+  "gradOffset": [
+   272,
+   231,
+   255
+  ],
+  "gradAmplitude": [
+   170,
+   251,
+   192
+  ],
+  "gradFreq": [
+   51,
+   102,
+   51
+  ],
+  "gradPhase": [
+   19,
+   367,
+   174
+  ],
+  "from": [
+   "Tsintaosaurus_Male.ovl",
+   "tsintaosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame183978.rdc",
+  "offset": 1147920188
+ },
+ "49_1": {
+  "seed": 49,
+  "complexity": 1,
+  "gradOffset": [
+   377,
+   192,
+   366
+  ],
+  "gradAmplitude": [
+   219,
+   180,
+   131
+  ],
+  "gradFreq": [
+   51,
+   51,
+   102
+  ],
+  "gradPhase": [
+   3,
+   2,
+   169
+  ],
+  "from": [
+   "Gigantspinosaurus_Male.ovl",
+   "gigantspinosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 1121121188
+ },
+ "20_1": {
+  "seed": 20,
+  "complexity": 1,
+  "gradOffset": [
+   256,
+   251,
+   258
+  ],
+  "gradAmplitude": [
+   135,
+   254,
+   128
+  ],
+  "gradFreq": [
+   102,
+   51,
+   51
+  ],
+  "gradPhase": [
+   41,
+   159,
+   246
+  ],
+  "from": [
+   "Struthiomimus_Male.ovl",
+   "struthiomimus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 1139556496
+ },
+ "7_1": {
+  "seed": 7,
+  "complexity": 1,
+  "gradOffset": [
+   262,
+   140,
+   134
+  ],
+  "gradAmplitude": [
+   255,
+   130,
+   234
+  ],
+  "gradFreq": [
+   51,
+   51,
+   51
+  ],
+  "gradPhase": [
+   43,
+   369,
+   121
+  ],
+  "from": [
+   "Dimorphodon_Male.ovl",
+   "dimorphodon_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame185033.rdc",
+  "offset": 1156740652
+ },
+ "28_1": {
+  "seed": 28,
+  "complexity": 1,
+  "gradOffset": [
+   389,
+   255,
+   229
+  ],
+  "gradAmplitude": [
+   130,
+   219,
+   208
+  ],
+  "gradFreq": [
+   51,
+   51,
+   102
+  ],
+  "gradPhase": [
+   238,
+   448,
+   500
+  ],
+  "from": [
+   "Styracosaurus_Male.ovl",
+   "styracosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 1148688012
+ },
+ "18_1": {
+  "seed": 18,
+  "complexity": 1,
+  "gradOffset": [
+   140,
+   396,
+   242
+  ],
+  "gradAmplitude": [
+   252,
+   128,
+   144
+  ],
+  "gradFreq": [
+   51,
+   51,
+   102
+  ],
+  "gradPhase": [
+   510,
+   423,
+   189
+  ],
+  "from": [
+   "Gallimimus_Male.ovl",
+   "gallimimus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 1150494132
+ },
+ "22_1": {
+  "seed": 22,
+  "complexity": 1,
+  "gradOffset": [
+   348,
+   124,
+   377
+  ],
+  "gradAmplitude": [
+   226,
+   130,
+   180
+  ],
+  "gradFreq": [
+   102,
+   51,
+   51
+  ],
+  "gradPhase": [
+   132,
+   446,
+   17
+  ],
+  "from": [
+   "Muttaburrasaurus_Male.ovl",
+   "muttaburrasaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 1158856052
+ },
+ "18_2": {
+  "seed": 18,
+  "complexity": 2,
+  "gradOffset": [
+   140,
+   396,
+   242
+  ],
+  "gradAmplitude": [
+   252,
+   128,
+   144
+  ],
+  "gradFreq": [
+   51,
+   51,
+   153
+  ],
+  "gradPhase": [
+   510,
+   423,
+   189
+  ],
+  "from": [
+   "Proceratosaurus_Female.ovl",
+   "proceratosaurus_variant_01_11.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 1161048712
+ },
+ "47_1": {
+  "seed": 47,
+  "complexity": 1,
+  "gradOffset": [
+   258,
+   264,
+   273
+  ],
+  "gradAmplitude": [
+   223,
+   128,
+   255
+  ],
+  "gradFreq": [
+   102,
+   102,
+   51
+  ],
+  "gradPhase": [
+   63,
+   305,
+   184
+  ],
+  "from": [
+   "Herrerasaurus_Male.ovl",
+   "herrerasaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame183978.rdc",
+  "offset": 1186080824
+ },
+ "34_1": {
+  "seed": 34,
+  "complexity": 1,
+  "gradOffset": [
+   134,
+   242,
+   256
+  ],
+  "gradAmplitude": [
+   242,
+   234,
+   132
+  ],
+  "gradFreq": [
+   51,
+   102,
+   102
+  ],
+  "gradPhase": [
+   9,
+   41,
+   30
+  ],
+  "from": [
+   "Parasaurolophus_Male.ovl",
+   "parasaurolophus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame183978.rdc",
+  "offset": 1187837120
+ },
+ "19_1": {
+  "seed": 19,
+  "complexity": 1,
+  "gradOffset": [
+   128,
+   396,
+   250
+  ],
+  "gradAmplitude": [
+   191,
+   226,
+   247
+  ],
+  "gradFreq": [
+   102,
+   102,
+   102
+  ],
+  "gradPhase": [
+   209,
+   434,
+   389
+  ],
+  "from": [
+   "Triceratops_Male.ovl",
+   "triceratops_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 1172232252
+ },
+ "52_1": {
+  "seed": 52,
+  "complexity": 1,
+  "gradOffset": [
+   405,
+   192,
+   407
+  ],
+  "gradAmplitude": [
+   231,
+   161,
+   128
+  ],
+  "gradFreq": [
+   102,
+   102,
+   51
+  ],
+  "gradPhase": [
+   402,
+   425,
+   81
+  ],
+  "from": [
+   "Mamenchisaurus_Male.ovl",
+   "mamenchisaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame183978.rdc",
+  "offset": 1202992188
+ },
+ "16_1": {
+  "seed": 16,
+  "complexity": 1,
+  "gradOffset": [
+   255,
+   256,
+   200
+  ],
+  "gradAmplitude": [
+   128,
+   251,
+   132
+  ],
+  "gradFreq": [
+   51,
+   102,
+   102
+  ],
+  "gradPhase": [
+   476,
+   65,
+   84
+  ],
+  "from": [
+   "Geosternbergia_Male.ovl",
+   "geosternbergia_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame177780.rdc",
+  "offset": 1182217476
+ },
+ "6_1": {
+  "seed": 6,
+  "complexity": 1,
+  "gradOffset": [
+   114,
+   409,
+   124
+  ],
+  "gradAmplitude": [
+   170,
+   131,
+   227
+  ],
+  "gradFreq": [
+   102,
+   51,
+   51
+  ],
+  "gradPhase": [
+   159,
+   9,
+   504
+  ],
+  "from": [
+   "Troodon_Male.ovl",
+   "troodon_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame183978.rdc",
+  "offset": 358460928
+ },
+ "50_1": {
+  "seed": 50,
+  "complexity": 1,
+  "gradOffset": [
+   243,
+   256,
+   253
+  ],
+  "gradAmplitude": [
+   187,
+   138,
+   143
+  ],
+  "gradFreq": [
+   51,
+   51,
+   102
+  ],
+  "gradPhase": [
+   45,
+   157,
+   3
+  ],
+  "from": [
+   "Cearadactylus_Male.ovl",
+   "cearadactylus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame183978.rdc",
+  "offset": 410161492
+ },
+ "41_1": {
+  "seed": 41,
+  "complexity": 1,
+  "gradOffset": [
+   231,
+   405,
+   158
+  ],
+  "gradAmplitude": [
+   254,
+   239,
+   234
+  ],
+  "gradFreq": [
+   51,
+   102,
+   51
+  ],
+  "gradPhase": [
+   91,
+   1,
+   3
+  ],
+  "from": [
+   "Baryonyx_Male.ovl",
+   "baryonyx_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame183978.rdc",
+  "offset": 659809052
+ },
+ "23_1": {
+  "seed": 23,
+  "complexity": 1,
+  "gradOffset": [
+   231,
+   134,
+   243
+  ],
+  "gradAmplitude": [
+   213,
+   220,
+   138
+  ],
+  "gradFreq": [
+   102,
+   102,
+   51
+  ],
+  "gradPhase": [
+   143,
+   256,
+   131
+  ],
+  "from": [
+   "Kentrosaurus_Male.ovl",
+   "kentrosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame185033.rdc",
+  "offset": 191660556
+ },
+ "62_1": {
+  "seed": 62,
+  "complexity": 1,
+  "gradOffset": [
+   221,
+   409,
+   254
+  ],
+  "gradAmplitude": [
+   239,
+   228,
+   143
+  ],
+  "gradFreq": [
+   102,
+   102,
+   102
+  ],
+  "gradPhase": [
+   155,
+   54,
+   511
+  ],
+  "from": [
+   "Dimetrodon_Male.ovl",
+   "dimetrodon_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame185033.rdc",
+  "offset": 359342708
+ },
+ "4_1": {
+  "seed": 4,
+  "complexity": 1,
+  "gradOffset": [
+   260,
+   256,
+   251
+  ],
+  "gradAmplitude": [
+   148,
+   147,
+   231
+  ],
+  "gradFreq": [
+   102,
+   51,
+   102
+  ],
+  "gradPhase": [
+   423,
+   506,
+   0
+  ],
+  "from": [
+   "Nasutoceratops_Male.ovl",
+   "nasutoceratops_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame185033.rdc",
+  "offset": 1186768868
+ },
+ "14_1": {
+  "seed": 14,
+  "complexity": 1,
+  "gradOffset": [
+   239,
+   239,
+   231
+  ],
+  "gradAmplitude": [
+   185,
+   128,
+   239
+  ],
+  "gradFreq": [
+   102,
+   102,
+   102
+  ],
+  "gradPhase": [
+   448,
+   2,
+   511
+  ],
+  "from": [
+   "Lystrosaurus_Male.ovl",
+   "lystrosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_15.21_frame185033.rdc",
+  "offset": 1195336564
+ },
+ "8_1": {
+  "seed": 8,
+  "complexity": 1,
+  "gradOffset": [
+   108,
+   128,
+   182
+  ],
+  "gradAmplitude": [
+   255,
+   130,
+   236
+  ],
+  "gradFreq": [
+   102,
+   51,
+   102
+  ],
+  "gradPhase": [
+   446,
+   340,
+   507
+  ],
+  "from": [
+   "Dryosaurus_Male.ovl",
+   "dryosaurus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_16.04_frame37136.rdc",
+  "offset": 435363380
+ },
+ "26_1": {
+  "seed": 26,
+  "complexity": 1,
+  "gradOffset": [
+   307,
+   341,
+   221
+  ],
+  "gradAmplitude": [
+   181,
+   223,
+   163
+  ],
+  "gradFreq": [
+   51,
+   102,
+   102
+  ],
+  "gradPhase": [
+   409,
+   19,
+   8
+  ],
+  "from": [
+   "Olorotitan_Male.ovl",
+   "olorotitan_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_16.04_frame37136.rdc",
+  "offset": 572323596
+ },
+ "13_1": {
+  "seed": 13,
+  "complexity": 1,
+  "gradOffset": [
+   262,
+   250,
+   405
+  ],
+  "gradAmplitude": [
+   222,
+   242,
+   230
+  ],
+  "gradFreq": [
+   102,
+   51,
+   102
+  ],
+  "gradPhase": [
+   18,
+   239,
+   384
+  ],
+  "from": [
+   "Tropeognathus_Male.ovl",
+   "tropeognathus_variant_01_00.fgm"
+  ],
+  "capture": "JWE3_2026.07.25_16.04_frame37680.rdc",
+  "offset": 1070422724
+ }
+}

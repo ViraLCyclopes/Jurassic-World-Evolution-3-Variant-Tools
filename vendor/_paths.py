@@ -6,7 +6,8 @@ the package they must not reach outside it, so every path they need is resolved 
 
     ../data/        shipped data (gradient_coefficients.json, swatch_params.json) -- our own
                     measurements, safe to distribute
-    ../SwatchLibrary/   game textures the USER supplies (see PLACE_SWATCH_LIBRARY_HERE.md)
+    (swatches)      game textures the USER supplies, from a folder they configure -- NOT packaged.
+                    Set it in `setup_gui.py` (Swatch Library) or via JWE3_SWATCH_DIR.
     ../LayerJSON/   generated on demand, written inside the package
     ../PaletteJSON/ likewise
 
@@ -46,7 +47,10 @@ def swatch_params():
 
 def swatch_dir():
     """The user's Swatch Library -- config first, then the folder shipped (empty) in the package."""
-    return _config("swatch_dir") or os.path.join(PKG, "SwatchLibrary")
+    # No packaged fallback. The software ships NO game textures, so `PKG/SwatchLibrary` does not
+    # exist -- returning it produced a path that could never resolve and an error that blamed a
+    # missing swatch instead of a missing setting. None means "not configured": say so.
+    return _config("swatch_dir")
 
 
 def layerjson_dir():

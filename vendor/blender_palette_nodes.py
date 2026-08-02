@@ -10,7 +10,7 @@ which is itself checked against the disassembly, so the two cannot drift apart s
     B      = grade(albedo, hueMatrixPalette, brightPal,  satPal)
     out    = lerp(albedo, lerp(A, B, blend), colourWeight)
     t      = height * 100 * paletteScale + paletteOffset
-    grad   = saturate((offset + amplitude * cos(2*pi*(t/51*freq + phase/511))) / 511)
+    grad   = saturate((offset + amplitude * cos(2*pi*(t/51.1*freq + phase/511))) / 511)
     s      = colourWeight * paletteStrength * blend
     out    = overlay(saturate(out - 1/255), grad*s + (1-s)*0.5)
 
@@ -40,6 +40,15 @@ from blender_layer_nodes import layout      # one auto-layout pass, shared by bo
 
 REC709 = (0.2126, 0.7152, 0.0722)
 S10 = 511.0
+
+# The IR divides `t` by this before multiplying by freq: `%2864 = fmul %2824, 0x3F940A0500000000`,
+# and that constant is 0.01956947 = 1/51.1. It is NOT 1/51 -- see PALETTE.md "The divisor is 51.1,
+# not 51". Small, but this is a transcription of the shader and it should be exact.
+T_DIVISOR = 51.1
+
+# The body grade's node name. Every consumer looks the grade up by this prefix, so it has to be set
+# where the node is created, not by whichever caller happens to remember.
+GRADE_BODY = "JWE3_Grade_body"
 
 
 def _new_group(name, inputs, outputs):
@@ -90,7 +99,8 @@ def palette_group(block, name=None):
     g, gin, gout = _new_group(
         name,
         [("Albedo", "NodeSocketColor"), ("KeySource", "NodeSocketColor"),
-         ("Height", "NodeSocketFloat"), ("ColourWeight", "NodeSocketFloat")],
+         ("Height", "NodeSocketFloat"), ("ColourWeight", "NodeSocketFloat"),
+         ("FurMask", "NodeSocketFloat")],
         [("Color", "NodeSocketColor")])
     gin.location, gout.location = (-1400, 0), (1400, 0)
     m = _mk(g)
@@ -153,14 +163,36 @@ def palette_group(block, name=None):
     # ---- section 6: the layer colour weight lerps the ungraded albedo toward the graded colour
     out = _mix(g, gin.outputs["ColourWeight"], albedo, graded)
 
-    if not block["gradientEnabled"]:
-        g.links.new(out, gout.inputs["Color"])
+    def finish(socket):
+        """Apply u_furTint and hand the result to the group output.
+
+        MEASURED from 0238_ps_DinosaurFur_Vanilla_BaseLayered_GBuffer_0 (%2499-%2518):
+
+            albedo = lerp(albedo, albedo * furTint, furMask)
+
+        It is NOT a plain multiply. Tinting everything turns bare scaly skin the fur's colour --
+        the game keeps it dark brown. `furMask` is the GREEN channel of `pBaseAOTexture` sampled on
+        the base UVs (%1885 -> extractvalue 1), i.e. the fur coverage map; that texture ships with
+        only its R and G channels split out, which corroborates it.
+
+        furTint lives in a FOURTH 16-byte row of the material block, at +48. The block stride is 64
+        bytes (`<<6`) but `material_block.decode` only reads +0/+16/+32 -- it was derived from
+        container 300, the LAYERED shader, which never loads +48. Only the fur shaders do. Stored as
+        three f16s in the low halves of the row's first three uints.
+        """
+        tint = tuple(block.get("furTint", (1.0, 1.0, 1.0)))
+        if tuple(round(c, 6) for c in tint) != (1.0, 1.0, 1.0):
+            socket = _mix(g, gin.outputs["FurMask"], socket, _mix_multiply(g, socket, tint))
+        g.links.new(socket, gout.inputs["Color"])
         return layout(g)
+
+    if not block["gradientEnabled"]:
+        return finish(out)
 
     # ---- section 5: the cosine-gradient palette, parameterised by the composited height
     t = m("MULTIPLY_ADD", gin.outputs["Height"],
           100.0 * block["instancePaletteScale"], block["instancePaletteOffset"]).outputs[0]
-    ts = m("MULTIPLY", t, 1.0 / 51.0).outputs[0]
+    ts = m("MULTIPLY", t, 1.0 / T_DIVISOR).outputs[0]
     chan = g.nodes.new("ShaderNodeCombineColor")
     for i in range(3):
         off = block["gradOffset"][i]
@@ -188,8 +220,17 @@ def palette_group(block, name=None):
     ov.inputs["Factor"].default_value = 1.0
     g.links.new(base, ov.inputs[6])
     g.links.new(grey.outputs[2], ov.inputs[7])
-    g.links.new(ov.outputs[2], gout.inputs["Color"])
-    return layout(g)
+    return finish(ov.outputs[2])
+
+
+def _mix_multiply(g, socket, rgb):
+    """socket * rgb, as a MULTIPLY Mix at full factor."""
+    n = g.nodes.new("ShaderNodeMix")
+    n.data_type, n.blend_type = "RGBA", "MULTIPLY"
+    n.inputs["Factor"].default_value = 1.0
+    g.links.new(socket, n.inputs[6])
+    n.inputs[7].default_value = (rgb[0], rgb[1], rgb[2], 1.0)
+    return n.outputs[2]
 
 
 def _mix(g, factor, a, b):
@@ -232,9 +273,22 @@ def apply_to(mat, block, colour_weight=None):
     # The grade takes the albedo AFTER the layers have overlaid the base diffuse (%2588), not the
     # raw layer accumulator. Splice in where that overlay's output currently goes -- which is the
     # AO multiply if AO is on, or the BSDF's Base Color if not.
-    sink = [(l.to_node, l.to_socket) for l in src.outputs[2].links]
+    # Fall back to Base Color when the albedo feeds nothing: a severed chain must be repaired, not
+    # silently preserved. See blender_parts.albedo_sinks.
+    import blender_parts
+    sink = [(nt.nodes[n], nt.nodes[n].inputs[s])
+            for n, s in blender_parts.albedo_sinks(
+                mat, [(l.to_node.name, l.to_socket.name) for l in src.outputs[2].links])]
     pg = nt.nodes.new("ShaderNodeGroup")
     pg.node_tree = palette_group(block)
+    # NAME IT HERE, not in the callers. Blender's default name is "Group.009", which nothing can
+    # find again: `blender_parts.unsplice` matches on the JWE3_Grade prefix and blender_listener
+    # remembers the name only in a module global that dies with the session. An unfindable grade is
+    # not merely untidy -- the next apply calls palette_group(), `_new_group` deletes the node group
+    # of the same name out from under the old node, and that node goes TREE-LESS: its links vanish
+    # and the albedo chain is severed, so the body renders at a flat 0.5 grey. Reproduced on a
+    # scene graded by the listener and then re-graded by variant_parts.apply_variant_all.
+    pg.name = GRADE_BODY
     pg.width = 240
     pg.label = (f"{block['species']} v{block['variant']:02d} seed {block['seed']}"
                 f"/{block['complexity']}"
@@ -253,6 +307,9 @@ def apply_to(mat, block, colour_weight=None):
         pg.inputs["ColourWeight"].default_value = 1.0 if colour_weight is None else colour_weight
     for node, sock in sink:
         nt.links.new(pg.outputs["Color"], sock)
+    if not pg.outputs["Color"].links:
+        raise ValueError(f"{mat.name}: the grade's output reached nothing -- it would render at "
+                         f"Blender's default grey, not this variant's colour")
     layout(nt, dx=340, dy=280)
     return pg
 
@@ -274,7 +331,23 @@ def selftest():
            "gradFreq": [204, 204, 51], "gradPhase": [511, 66, 59]}
     g = palette_group(blk, name="JWE3_Palette_selftest")
     names = {s.name for s in g.interface.items_tree if s.item_type == "SOCKET"}
-    assert names == {"Albedo", "KeySource", "Height", "ColourWeight", "Color"}, names
+    assert names == {"Albedo", "KeySource", "Height", "ColourWeight", "FurMask", "Color"}, names
+
+    # u_furTint is a MASKED lerp, not a multiply: lerp(albedo, albedo*tint, furMask). A neutral
+    # tint must add no nodes at all, and a real one must go through a Mix driven by FurMask --
+    # applying it unmasked bleaches bare skin that the game keeps dark.
+    import copy
+    b = copy.deepcopy(blk)
+    b["furTint"] = [1.0, 1.0, 1.0]
+    plain = palette_group(b, name="JWE3_SelfTest_NoTint")
+    b["furTint"] = [1.0, 0.82, 0.545]
+    tinted = palette_group(b, name="JWE3_SelfTest_Tint")
+    assert len(tinted.nodes) > len(plain.nodes), "a non-neutral furTint added no nodes"
+    fed = [l.to_node for l in tinted.nodes["Group Input"].outputs["FurMask"].links]
+    assert fed, "FurMask is not wired to anything, so the tint is unmasked"
+    assert any(n.type == "MIX" for n in fed), [n.type for n in fed]
+    for t in (plain, tinted):
+        bpy.data.node_groups.remove(t)
     assert g.nodes  # something was built
 
     # The node graph's key mask must agree with material_block's, which is the version pinned
@@ -286,6 +359,21 @@ def selftest():
     dist_scale = {round(n.inputs[1].default_value, 6)
                   for n in g.nodes if n.type == "MATH" and n.operation == "MULTIPLY"}
     assert round(1.0 / blk["keyThreshold"], 6) in dist_scale, sorted(dist_scale)
+
+    # The gradient's `t` divisor, read back off the graph. 1/51.1 and 1/51 differ by 0.2% and both
+    # render happily, so nothing but an explicit check catches a regression to the old value --
+    # which is exactly how this drifted out of step with PALETTE.md in the first place.
+    # `dist_scale` is rounded to 6 places, which cannot tell 1/51.1 from 1/51 apart from the 5th
+    # digit -- read the constants again at full precision.
+    exact_muls = {n.inputs[1].default_value
+                  for n in g.nodes if n.type == "MATH" and n.operation == "MULTIPLY"}
+    assert any(abs(v - 1.0 / T_DIVISOR) < 1e-9 for v in exact_muls), \
+        f"gradient t-divisor is not 1/{T_DIVISOR}: {sorted(exact_muls)}"
+    assert not any(abs(v - 1.0 / 51.0) < 1e-9 for v in exact_muls), "reverted to 1/51"
+
+    # material_block is the pinned-against-captures reference; the two must not disagree.
+    import material_block
+    assert material_block.T_DIVISOR == T_DIVISOR, (material_block.T_DIVISOR, T_DIVISOR)
 
     # a circulant matrix's rows must each sum to the same thing, and to 1 when packed sums to 511
     rows = hue_matrix([500, 10, 1])
