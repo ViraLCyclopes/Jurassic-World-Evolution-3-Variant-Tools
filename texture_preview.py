@@ -69,15 +69,23 @@ def key_blend(block, key_source):
 
 
 def _gradient_at_ts(block, ts):
-    """The cosine palette at one ts, as a (3,) array, or None when there are no coefficients."""
+    """The cosine palette at `ts`, or None when there are no coefficients.
+
+    `ts` may be a scalar -> (3,), or a per-texel (H, W) array -> (H, W, 3). The array form is the
+    one the shader actually uses: the palette is driven by the COMPOSITED LAYER HEIGHT per texel,
+    and at freq 51 with scale 10 it runs ~100 cycles across the body. Evaluating it at a single
+    height collapses all of that to one flat colour, which is why a slider preview can never line
+    up with a render however the strength is set.
+    """
     if not block.get("gradientEnabled"):
         return None
+    ts = np.asarray(ts, dtype=np.float64)
     out = []
     for i in range(3):
-        arg = 2.0 * math.pi * (ts * block["gradFreq"][i] + block["gradPhase"][i] / S10)
-        out.append(np.clip((block["gradOffset"][i] + block["gradAmplitude"][i] * math.cos(arg)) / S10,
+        arg = 2.0 * np.pi * (ts * block["gradFreq"][i] + block["gradPhase"][i] / S10)
+        out.append(np.clip((block["gradOffset"][i] + block["gradAmplitude"][i] * np.cos(arg)) / S10,
                            0.0, 1.0))
-    return np.array(out, dtype=np.float64)
+    return np.stack(out, axis=-1)
 
 
 def ts_for_height(block, height):
@@ -90,6 +98,11 @@ def grade_image(rgb, block, height=0.5, colour_weight=1.0, key_source=None):
 
     `key_source` defaults to `rgb` itself, which is correct when you pass the base diffuse: the
     shader keys off that same texture. Pass it separately only if you have composited elsewhere.
+
+    `height` is a scalar OR a per-texel (H, W) array from `height_map`. Pass the array whenever you
+    can: the scalar is a single slice through a palette that cycles ~100 times across the body, and
+    no slider position makes it agree with a render. The scalar path is kept because sweeping it is
+    a genuinely useful way to see the palette's whole range.
     """
     rgb = np.asarray(rgb, dtype=np.float64)
     kb = key_blend(block, rgb if key_source is None else np.asarray(key_source, dtype=np.float64))
@@ -155,6 +168,99 @@ def colour_weight_map(layers, mask_dir, mask_stem, layer_weights, shape):
         variant_w = float(layer_weights[idx]) if 0 <= idx < len(layer_weights) else 1.0
         cw = abs(float(L.get("swatch_colour_weight", 1.0))) * variant_w
         acc = acc * (1.0 - sm) + cw * sm
+        found += 1
+    return acc if found else None
+
+
+def _height_slice(swatch_dir, index, shape):
+    """One slice of the shared height-texture ARRAY, resized to `shape`, or None.
+
+    THE SWATCH NAME IN THE FILENAME IS NOT THE SWATCH. `pHeightTexture` is a single texture array
+    shared by every swatch, extracted under whichever swatch happened to own it -- on this machine
+    all 54 slices sit under `swatch_anky_ankylo_backplates.pheighttexture_[NN].png`. A layer's
+    `slices["pHeightTexture"]` is an ARRAY INDEX into that, not a per-swatch file. Matching on the
+    swatch's own name finds nothing, which is the trap this function exists to avoid.
+    """
+    import glob as _glob
+    from PIL import Image
+    hits = _glob.glob(os.path.join(swatch_dir, "*.pheighttexture_[[]%02d[]].png" % int(index)))
+    if not hits:
+        return None
+    im = Image.open(sorted(hits)[0]).convert("L")
+    h, w = shape[0], shape[1]
+    if im.size != (w, h):
+        im = im.resize((w, h), Image.BILINEAR)
+    # Height is DATA, not colour -- no sRGB decode, same rule as the blend masks. Decoding it would
+    # move every texel to a different point on the palette cycle.
+    return np.asarray(im, dtype=np.float64) / 255.0
+
+
+def height_map(layers, mask_dir, mask_stem, shape, swatch_dir=None, layer_weights=None):
+    """Per-texel composited layer height -- what actually drives the palette. (H, W) or None.
+
+    Accumulated exactly as `colour_weight_map` does, because it is the same stack and the same
+    masks: `h = lerp(h, layerHeight, smoothstep(mask))`, starting from 0 so an uncovered texel
+    stays at 0. Each layer contributes `slice * pHeightScale + pHeightOffset`, the values the layer
+    FGM authored -- typically 0.001..0.01, which is what puts the palette parameter in the range
+    where `t = height*100*scale + offset` sweeps roughly a hundred cycles.
+
+    Returns None when the swatch library or the masks cannot be resolved; the caller then falls
+    back to the scalar slider, which is an approximation and should say so.
+    """
+    if not swatch_dir or not os.path.isdir(swatch_dir):
+        return None
+    from PIL import Image
+    h, w = shape[0], shape[1]
+    acc = np.zeros((h, w), dtype=np.float64)
+    found = 0
+    for L in layers:
+        if not L.get("used") or L.get("blend_texture") is None:
+            continue
+        idx = (L.get("slices") or {}).get("pHeightTexture")
+        if idx is None:
+            continue
+        mask_path = os.path.join(mask_dir, "%s_[%02d]_%s.png"
+                                 % (mask_stem, int(L["blend_texture"]), L["blend_channel"]))
+        if not os.path.isfile(mask_path):
+            continue
+        slice_img = _height_slice(swatch_dir, idx, (h, w))
+        if slice_img is None:
+            continue
+        im = Image.open(mask_path).convert("L")
+        if im.size != (w, h):
+            im = im.resize((w, h), Image.BILINEAR)
+        m = np.asarray(im, dtype=np.float64) / 255.0
+        sm = m * m * (3.0 - 2.0 * m)                      # smoothstep, as the shader does
+
+        p = L.get("params") or {}
+
+        def _p(name, default=0.0):
+            v = p.get(name, default)
+            return float(v[0]) if isinstance(v, (list, tuple)) and v else float(v or default)
+
+        # pHeightScale / max(pUVTile), matching `blender_layer_nodes._layer_group`.
+        #
+        # That reciprocal is NOT a guess: it was read straight out of eleven Lokiceratops layer
+        # blocks in RenderDoc captures (block +0 w1, `%896`), worst relative error 5e-8 across
+        # tiles 7..22.9, and the shader computes max(tile) at %922 for the LOD -- so the CPU is
+        # uploading the reciprocal of the same quantity and displacement stays proportional to
+        # feature size. Direct measurement of the uploaded value beats any fit downstream of it.
+        #
+        # I briefly replaced this with the raw pHeightScale after fitting the game's albedo for
+        # SpinosaurusJWR variant 06. That fit was WORTHLESS: variant 06 is the near-grey one
+        # (measured saturation 0.11-0.15), so every candidate lands within a few percent of neutral
+        # and the target cannot discriminate between them. Fit against a SATURATED variant if this
+        # ever needs re-testing.
+        # max() of the tile vector, matching `blender_layer_nodes` exactly
+        # (`norm = 1.0 / max(max(tile), 1e-6)`). Taking only the first component would diverge on
+        # any layer whose U and V tiles differ, and the whole point of this function is to compute
+        # the SAME height the node graph does so the two previews are comparable.
+        raw_tile = p.get("pUVTile", [1.0, 1.0])
+        if not isinstance(raw_tile, (list, tuple)) or not raw_tile:
+            raw_tile = [1.0]
+        tile = max(max(float(x) for x in raw_tile), 1e-6)
+        layer_h = slice_img * (_p("pHeightScale", 0.0) / tile) + _p("pHeightOffset", 0.0)
+        acc = acc * (1.0 - sm) + layer_h * sm
         found += 1
     return acc if found else None
 

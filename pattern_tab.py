@@ -21,6 +21,7 @@ import os
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+import patchwork
 import pattern_io
 import pattern_lut
 from pattern_model import (LUT_SIZE, N_COLOUR_KEYS, N_EMISSIVE_KEYS, N_OPACITY_KEYS, UNUSED,
@@ -104,6 +105,21 @@ class _SlotRow(QtWidgets.QWidget):
         self.pos.setRange(UNUSED, LUT_SIZE - 1)
         self.pos.setSpecialValueText("--")          # UNUSED reads as "--", not as "-1"
         self.pos.setFixedWidth(56)
+        self.pos.setToolTip(
+            "WHERE this key sits along the pattern ramp, not how strong it is.\n\n"
+            "The pattern is a %d-entry lookup table. The index map\n"
+            "(u_basePatternMap) is a GREYSCALE texture: its value at each texel\n"
+            "picks an entry, 0 at black through %d at white. This number is the\n"
+            "entry this key occupies.\n\n"
+            "Keys are SPARSE -- only the slots you set exist, and the table is\n"
+            "interpolated between them. So two keys at 18 and 22 put a gradient\n"
+            "across entries 18-22, and everything below the lowest and above the\n"
+            "highest key is flat.\n\n"
+            "'--' (-1) means the slot is UNUSED and contributes nothing. That is\n"
+            "how the game marks a spare slot -- it is not position zero.\n\n"
+            "Slots are a fixed set, so the order in this list means nothing; only\n"
+            "the positions do. Two slots may share a position."
+            % (LUT_SIZE, LUT_SIZE - 1))
         self.pos.valueChanged.connect(self._touched)
         lay.addWidget(self.pos)
 
@@ -184,12 +200,25 @@ class PatternTab(QtWidgets.QWidget):
     """Load / edit / save a pattern FGM. Emits `changed` whenever the model changes."""
 
     changed = QtCore.pyqtSignal()
+    #: "From selected" clicked. The TAB does not own the Blender bridge -- the window does -- so it
+    #: asks rather than reaching for it, and stays constructible with no bridge at all, which is
+    #: what keeps the headless selftest possible.
+    from_selected_requested = QtCore.pyqtSignal()
+    #: "Apply to Blender" clicked. Applies onto the material ALREADY on the mesh -- it does not
+    #: rebuild it. `blender_pattern_nodes.apply_pattern` unsplices any previous pattern and splices
+    #: the new one into the existing chain, so a variant that is already built keeps its layer
+    #: stack and grade untouched. Same bridge-free reasoning as `from_selected_requested`: the tab
+    #: asks, the window (which owns the bridge) acts.
+    apply_requested = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.model = PatternModel.template()
         self.path = None
         self.index_map = None            # raw greyscale bytes of u_basePatternMap, or None
+        self.patchwork_map = None        # raw greyscale bytes of u_basePatchworkMap, or None
+        self.patchwork_map_path = None   # ...and where it came from, for the Blender side
+        self.index_map_path = None       # ...and where it came from, for the Blender side
         self._original = None            # the model as loaded, for verbatim copy-back
         self._edited = set()             # (channel, slot) actually touched by the user
         self._loading = False
@@ -203,6 +232,8 @@ class PatternTab(QtWidgets.QWidget):
 
         bar = QtWidgets.QHBoxLayout()
         for label, slot in (("Open .fgm...", self.open_dialog),
+                            ("From selected", self.from_selected_requested.emit),
+                            ("Apply to Blender", self.apply_requested.emit),
                             ("Save", self.save), ("Save As...", self.save_as),
                             ("Clear", self.clear)):
             b = QtWidgets.QPushButton(label)
@@ -225,14 +256,53 @@ class PatternTab(QtWidgets.QWidget):
         imap.addStretch(1)
         outer.addLayout(imap)
 
+        # The patchwork map splits the body into zones; patchworkFlags picks which of them the
+        # pattern paints on. 100 patternsets across 63 species ship one; "(none)" is still normal.
+        pw_row = QtWidgets.QHBoxLayout()
+        self.patchwork_button = QtWidgets.QPushButton("Patchwork map...")
+        self.patchwork_button.setToolTip(
+            "The species' u_basePatchworkMap: which body zone each texel belongs to.\n\n"
+            "100 patternsets across 63 species ship one, but many do not. Without\n"
+            "one there is no zoning and the pattern paints everywhere, which is\n"
+            "correct, not a fault.")
+        self.patchwork_button.clicked.connect(self.patchwork_map_dialog)
+        pw_row.addWidget(self.patchwork_button)
+        self.patchwork_import_button = QtWidgets.QPushButton("Import painted...")
+        self.patchwork_import_button.setToolTip(
+            "Turn a painted zone map from any tool into a game-ready patchwork map.\n\n"
+            "Export it WITHOUT colour management -- a map tagged sRGB is decoded on\n"
+            "load and every value shifts zone.")
+        self.patchwork_import_button.clicked.connect(self.import_patchwork_dialog)
+        pw_row.addWidget(self.patchwork_import_button)
+        self.patchwork_label = QtWidgets.QLabel("(none)")
+        pw_row.addWidget(self.patchwork_label, 1)
+        outer.addLayout(pw_row)
+
         self.strip = GradientStrip()
         outer.addWidget(self.strip)
 
         flags = QtWidgets.QHBoxLayout()
         self.use_lut = QtWidgets.QCheckBox("usePatternLUT")
+        self.use_lut.setToolTip(
+            "Use the key table above to colour the pattern.\n\n"
+            "Off, the LUT is bypassed and the keys do nothing -- the usual reason\n"
+            "an edited pattern shows no change at all.")
         self.use_patchwork = QtWidgets.QCheckBox("usePatchwork")
+        self.use_patchwork.setToolTip(
+            "MASTER ENABLE for patchwork -- verified in game 2026-08-08.\n\n"
+            "On, the patchwork map splits the body into zones and patchworkFlags\n"
+            "picks which zones the pattern paints on. Off, zoning is ignored\n"
+            "entirely and the pattern paints everywhere.\n\n"
+            "Every pattern the game ships sets this to 0, which is the real reason\n"
+            "patchwork does nothing in retail.")
         self.patchwork_flags = QtWidgets.QSpinBox()
-        self.patchwork_flags.setRange(0, 255)
+        self.patchwork_flags.setRange(0, 31)
+        self.patchwork_flags.setToolTip(
+            "Which body zones the pattern paints on: one bit per zone, 0-4.\n"
+            "Bit set = that zone shows the pattern; clear = bare skin there.\n\n"
+            "31 = 0b11111 = every zone on, which the shader treats as 'no zoning'\n"
+            "(it tests flags < 31). Needs usePatchwork on to have any effect.\n\n"
+            "Example: 15 = 0b01111 paints every zone except 4.")
         for w in (self.use_lut, self.use_patchwork):
             w.toggled.connect(self._on_edit)
             flags.addWidget(w)
@@ -323,6 +393,7 @@ class PatternTab(QtWidgets.QWidget):
         self._edited.clear()
         self.path = path
         self.path_label.setText(os.path.basename(path))
+        self.auto_find_patchwork_map(path)
         self._push()
         self.changed.emit()
         return True
@@ -375,6 +446,9 @@ class PatternTab(QtWidgets.QWidget):
         self._edited.clear()
         self.path = None
         self.path_label.setText("(no pattern loaded)")
+        self.patchwork_map = None
+        self.patchwork_map_path = None
+        self.patchwork_label.setText("(none)")
         self._push()
         self.changed.emit()
 
@@ -404,9 +478,100 @@ class PatternTab(QtWidgets.QWidget):
         # rows are padded to bytesPerLine; slicing to w drops the padding
         arr = np.frombuffer(ptr, np.uint8).reshape(h, img.bytesPerLine())[:, :w].copy()
         self.index_map = arr
+        self.index_map_path = path        # Blender needs the PATH; the Qt overlay needs the array
         self.index_label.setText(os.path.basename(path))
         self.changed.emit()
         return True
+
+    # -- patchwork map -----------------------------------------------------
+    def patchwork_map_dialog(self):
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Open patchwork map (u_basePatchworkMap)", "",
+            "Images (*.png *.tga *.jpg);;All files (*)")
+        if path:
+            self.set_patchwork_map(path)
+
+    def set_patchwork_map(self, path):
+        """Load the species' `u_basePatchworkMap` as RAW BYTES.
+
+        Same rule as `set_index_map`, different symptom: this map holds ZONE IDS, and sRGB-decoding
+        it slides texels across zone boundaries -- grey 205 (zone 4) decodes to about 0.66 and
+        lands in zone 3, silently gating the wrong half of the animal.
+
+        A shipped map is ALREADY quantised to zones, so it is read straight through here; the
+        import path exists only for maps painted in arbitrary colours.
+        """
+        img = QtGui.QImage(path)
+        if img.isNull():
+            self.note.setText("patchwork map: could not read %s" % os.path.basename(path))
+            return False
+        img = img.convertToFormat(QtGui.QImage.Format_Grayscale8)
+        w, h = img.width(), img.height()
+        ptr = img.constBits()
+        ptr.setsize(img.byteCount())
+        arr = np.frombuffer(ptr, np.uint8).reshape(h, img.bytesPerLine())[:, :w].copy()
+        self.patchwork_map = arr
+        self.patchwork_map_path = path
+        hist = patchwork.zone_histogram(arr)
+        self.patchwork_label.setText("%s  (%s)" % (
+            os.path.basename(path),
+            ", ".join("zone %d %.0f%%" % (z, f * 100) for z, f in sorted(hist.items()))))
+        self.changed.emit()
+        return True
+
+    def auto_find_patchwork_map(self, pattern_fgm_path):
+        """Find `<patternset>.u_basepatchworkmap.png` beside a loaded pattern FGM.
+
+        Pattern files are `<species>_pattern_<NN>_<NN>.fgm` and the map belongs to the SET,
+        `<species>_patternset_<NN>.u_basepatchworkmap.png`, so the stem cannot simply be reused.
+        100 patternsets across 63 species ship one; returning False is still a normal case.
+        """
+        d = os.path.dirname(pattern_fgm_path)
+        if not os.path.isdir(d):
+            return False
+        for f in sorted(os.listdir(d)):
+            if f.lower().endswith(".u_basepatchworkmap.png"):
+                return self.set_patchwork_map(os.path.join(d, f))
+        return False
+
+    def import_patchwork_dialog(self):
+        """Painted map in, quantised game-ready map out, then load it as the live preview map."""
+        from PIL import Image
+        import patchwork_import_dialog
+        src, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Open a painted zone map", "",
+            "Images (*.png *.tga *.tif *.tiff *.jpg);;All files (*)")
+        if not src:
+            return
+        dlg = patchwork_import_dialog.PatchworkImportDialog(self)
+        if not dlg.load(src):
+            self.note.setText("could not read %s" % os.path.basename(src))
+            return
+        if dlg.exec_() != QtWidgets.QDialog.Accepted or dlg.result_map is None:
+            return
+        out = self._patchwork_export_target()
+        if not out:
+            return
+        Image.fromarray(dlg.result_map, mode="L").save(out)
+        self.set_patchwork_map(out)
+
+    def _patchwork_export_target(self):
+        """Path the quantised map should be written to, or None if the user cancels.
+
+        cobra-tools injects a texture via its `<patternset>.u_basepatchworkmap.tex` sidecar and
+        picks the .png out of the same folder by name, so this name is a contract rather than a
+        preference. Derive it from a `.tex` sitting beside the loaded map or pattern FGM; only
+        fall back to a Save dialog when there is nothing to derive it from.
+        """
+        base = self.patchwork_map_path or self.path      # PatternTab.path = loaded pattern FGM
+        if base and os.path.isdir(os.path.dirname(base)):
+            d = os.path.dirname(base)
+            for f in sorted(os.listdir(d)):
+                if f.lower().endswith(".u_basepatchworkmap.tex"):
+                    return os.path.join(d, f[:-4] + ".png")
+        out, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save quantised patchwork map", "", "PNG (*.png)")
+        return out or None
 
     # -- preview -----------------------------------------------------------
     def is_active(self):
@@ -425,8 +590,17 @@ class PatternTab(QtWidgets.QWidget):
         yi = np.clip(np.arange(h) * src.shape[0] // max(h, 1), 0, src.shape[0] - 1)
         xi = np.clip(np.arange(w) * src.shape[1] // max(w, 1), 0, src.shape[1] - 1)
         idx = src[yi][:, xi]
+        # Patchwork gate. Nearest-neighbour again: the map holds ZONE IDS, and interpolating
+        # between two zones invents a third that neither texel belongs to.
+        gate = None
+        if self.patchwork_map is not None:
+            pw = self.patchwork_map
+            pyi = np.clip(np.arange(h) * pw.shape[0] // max(h, 1), 0, pw.shape[0] - 1)
+            pxi = np.clip(np.arange(w) * pw.shape[1] // max(w, 1), 0, pw.shape[1] - 1)
+            gate = patchwork.gate_mask(
+                pw[pyi][:, pxi], self.model.patchworkFlags, self.model.usePatchwork)
         try:
-            return pattern_lut.composite(linear_rgb, idx, self.model)
+            return pattern_lut.composite(linear_rgb, idx, self.model, gate=gate)
         except Exception as e:
             self.note.setText("overlay unavailable: %s: %s" % (type(e).__name__, e))
             return linear_rgb
@@ -468,6 +642,33 @@ def selftest():
     # The strip bakes through the same code the compositor samples.
     tab.strip.set_model(m)
     assert tab.strip.lut is not None and tab.strip.lut["colour"].shape == (LUT_SIZE, 3)
+
+    # --- patchwork ------------------------------------------------------------
+    import patchwork
+    t = PatternTab()
+    t.model = PatternModel.template()
+    # composite_onto no-ops unless is_active(), which needs at least one opacity key with a
+    # position >= 0. A blank template has none, so the whole test would silently pass by
+    # returning the input unchanged. Give it a real key.
+    t.model.opacityKeys = [(16, 1.0)] + [(UNUSED, 0.0)] * (N_OPACITY_KEYS - 1)
+    t.model.usePatchwork = True
+    t.model.patchworkFlags = 16                 # zone 4 only
+    t.index_map = np.full((4, 4), 200, np.uint8)
+    t.patchwork_map = np.array([[26, 230], [230, 26]], np.uint8)   # zones 0,4 / 4,0
+    alb = np.full((4, 4, 3), 0.25)
+    out = t.composite_onto(alb)
+    # zone-0 quadrants keep base albedo; zone-4 quadrants are painted
+    assert np.allclose(out[0, 0], alb[0, 0]), out[0, 0]
+    assert not np.allclose(out[0, 3], alb[0, 3]), out[0, 3]
+    # master enable off -> gate ignored entirely, everything paints
+    t.model.usePatchwork = False
+    out2 = t.composite_onto(alb)
+    assert not np.allclose(out2[0, 0], alb[0, 0]), out2[0, 0]
+    # no map -> no gating, and no crash
+    t.model.usePatchwork = True
+    t.patchwork_map = None
+    assert t.composite_onto(alb) is not None
+
     print("selftest ok")
 
 

@@ -275,9 +275,16 @@ def _resolve_object(name):
     return None, [o.name for o in (partial or meshes)][:10]
 
 
-def _build_on_object(object_name, mask_dir, mask_prefix, layers_json):
+def _build_on_object(object_name, mask_dir, mask_prefix, layers_json, base_diffuse=None,
+                     skin_name=None):
     """Build the layer material and assign it to `object_name`. Returns the material, or None if
-    that object does not exist. Shared by the socket `build` command and the menu importer."""
+    that object does not exist. Shared by the socket `build` command and the menu importer.
+
+    `base_diffuse` swaps the species base diffuse for a VARIANTSET's (a cosmetic skin). Everything
+    else -- layers, masks, height, roughness -- is identical, which is the whole of what a
+    variantset does. `skin_name` only tags the material so which skin is loaded is visible rather
+    than inferred; picking the wrong one is otherwise a silent wrong-texture render.
+    """
     import bpy
     sys.path.insert(0, _parent_dir())
     from blender_layer_nodes import build_from_json
@@ -287,7 +294,12 @@ def _build_on_object(object_name, mask_dir, mask_prefix, layers_json):
     if obj is None:
         return None
 
-    mat = build_from_json(layers_json, mask_dir, mask_prefix)
+    kw = {}
+    if base_diffuse:
+        kw["base_diffuse_override"] = base_diffuse
+    mat = build_from_json(layers_json, mask_dir, mask_prefix, **kw)
+    if skin_name:
+        mat["jwe3_variantset"] = skin_name
 
     if obj.data.materials:
         obj.data.materials[0] = mat
@@ -308,7 +320,9 @@ def _build_on_object(object_name, mask_dir, mask_prefix, layers_json):
 
 def _cmd_build(cmd):
     """Handle {"cmd": "build", ...} -- must run on Blender's main thread."""
-    mat = _build_on_object(cmd["object"], cmd["mask_dir"], cmd["mask_prefix"], cmd["layers_json"])
+    mat = _build_on_object(cmd["object"], cmd["mask_dir"], cmd["mask_prefix"], cmd["layers_json"],
+                           base_diffuse=cmd.get("base_diffuse"),
+                           skin_name=cmd.get("skin_name"))
     if mat is None:
         # Say WHICH names exist. "build failed" alone is useless when the cause is a name that
         # looks right on screen but differs by cobra-tools' trailing ": " suffix.
@@ -473,13 +487,15 @@ def import_pattern(fgm_path, object_name=None):
         return False, "%s: %s" % (type(e).__name__, e)
 
     index_map = _pattern_index_map(species_dir, part)
+    patchwork_map = _pattern_patchwork_map(species_dir, part)
     done = []
     for obj in objs:
         if not obj.data.materials or obj.data.materials[0] is None:
             return False, "%s has no material yet -- import a variant first" % obj.name
         mat = obj.data.materials[0]
         tag = (blender_parts.mesh_part_name(obj) or part or "body").lower()
-        bpn.apply_pattern(mat, data, index_map=index_map, tag=tag)
+        bpn.apply_pattern(mat, data, index_map=index_map, tag=tag,
+                          patchwork_map=patchwork_map)
         mat["jwe3_pattern_fgm"] = os.path.basename(fgm_path)
         mat["jwe3_pattern_path"] = os.path.abspath(fgm_path)   # so Reload can find it again
         done.append("%s (%s)" % (obj.name, mat.name))
@@ -594,6 +610,21 @@ def _pattern_index_map(species_dir, part):
     for f in sorted(os.listdir(species_dir)):
         low = f.lower()
         if low.endswith(".png") and low.endswith(want + ".png"):
+            return os.path.join(species_dir, f)
+    return None
+
+
+def _pattern_patchwork_map(species_dir, part):
+    """`u_basePatchworkMap` (body) or `u_feathersBasePatchworkMap` (plumage) PNG, or None.
+
+    100 of the game's patternsets ship one, across 63 species, so it is common -- but many
+    still have none, and None is a normal case rather than a fault.
+    """
+    want = ("u_feathersbasepatchworkmap" if part in ("Feathers", "Quills")
+            else "u_basepatchworkmap")
+    for f in sorted(os.listdir(species_dir)):
+        low = f.lower()
+        if low.endswith(want + ".png"):
             return os.path.join(species_dir, f)
     return None
 
@@ -891,15 +922,84 @@ def _cmd_selected(cmd):
         if slot.material is not None:
             mat = slot.material
             break
+    # Patterns are reported alongside the variant because they are a SEPARATE cosmetic axis: a
+    # material can carry a pattern with no variant, or the reverse. `import_pattern` stamps
+    # jwe3_pattern_path/_fgm exactly so "what is on this mesh" can be answered later.
     info = {"object": obj.name, "material": mat.name if mat else None,
-            "variant_path": None, "variant_fgm": None, "seed": None, "variant_index": None}
+            "variant_path": None, "variant_fgm": None, "seed": None, "variant_index": None,
+            "pattern_path": None, "pattern_fgm": None}
     if mat is not None:
         for key, prop in (("variant_path", "jwe3_variant_path"), ("variant_fgm", "jwe3_variant_fgm"),
-                          ("seed", "jwe3_seed"), ("variant_index", "jwe3_variant_index")):
+                          ("seed", "jwe3_seed"), ("variant_index", "jwe3_variant_index"),
+                          ("pattern_path", "jwe3_pattern_path"), ("pattern_fgm", "jwe3_pattern_fgm")):
             v = mat.get(prop)
             if v is not None:
                 info[key] = v
     return {"ok": True, "selected": info}
+
+
+def _cmd_pattern(cmd):
+    """Handle {"cmd": "pattern", "data": {...}} -- apply a pattern from data, with NO file on disk.
+
+    This is the LIVE-PREVIEW path and it deliberately does not take a path. `import_pattern` reads
+    a .fgm, which is right for File > Import but useless while someone is dragging a key in the
+    editor: the edit they are looking at has not been saved and may never be. `data` is exactly
+    what `export_pattern.export()` produces -- {source, model, lut, interp, threshold} -- so the
+    editor can build it from its in-memory model and the node builder is none the wiser.
+
+    Must run on Blender's main thread; the queue drain guarantees that.
+    """
+    data = cmd.get("data")
+    if not isinstance(data, dict) or "lut" not in data:
+        return {"ok": False, "error": "pattern: 'data' must be an export_pattern-style dict"}
+
+    for p in (_here(), _parent_dir()):
+        if p not in sys.path:
+            sys.path.insert(0, p)
+    import bpy
+    import blender_parts
+    import blender_pattern_nodes as bpn
+
+    part = cmd.get("part") or ""
+    name = cmd.get("object")
+    # Same precedence as import_pattern: an explicit object, else the SELECTION, else discovery.
+    # Object names are user-editable, so a naming convention can only ever be the fallback.
+    if name:
+        obj, candidates = _resolve_object(name)
+        objs = [obj] if obj is not None else []
+        if not objs:
+            suffix = (" (candidates: %s)" % ", ".join(candidates)) if candidates else ""
+            return {"ok": False, "error": "no mesh object named %r%s" % (name, suffix)}
+    else:
+        objs = [o for o in bpy.context.selected_objects
+                if o.type == "MESH" and "joint_physics" not in o.name]
+        if not objs:
+            parts = blender_parts.discover_parts(lod=0)
+            objs = list(parts.get(part) or [])
+            if part == "":
+                objs += list(parts.get("__derived__") or [])
+    if not objs:
+        return {"ok": False, "error": "no target mesh: select one, or pass 'object'"}
+
+    index_map = cmd.get("index_map") or None
+    if index_map and not os.path.isfile(index_map):
+        index_map = None
+    patchwork_map = cmd.get("patchwork_map") or None
+    if patchwork_map and not os.path.isfile(patchwork_map):
+        patchwork_map = None
+    done = []
+    for obj in objs:
+        if not obj.data.materials or obj.data.materials[0] is None:
+            return {"ok": False,
+                    "error": "%s has no material yet -- import a variant first" % obj.name}
+        mat = obj.data.materials[0]
+        tag = (blender_parts.mesh_part_name(obj) or part or "body").lower()
+        bpn.apply_pattern(mat, data, index_map=index_map, tag=tag,
+                          patchwork_map=patchwork_map)
+        done.append("%s (%s)" % (obj.name, mat.name))
+    return {"ok": True, "applied": done,
+            "index_map": os.path.basename(index_map) if index_map else None,
+            "note": None if index_map else "no index map -- the pattern reads as a flat tint"}
 
 
 _HANDLERS = {
@@ -909,6 +1009,7 @@ _HANDLERS = {
     "ping": _cmd_ping,
     "state": _cmd_state,
     "selected": _cmd_selected,
+    "pattern": _cmd_pattern,
 }
 
 
@@ -1032,6 +1133,30 @@ def _register_ui():
 
         _write_extra = _write_fur
 
+        def _write_layerjson(self, _context):
+            """Point the add-on at the folder LayerJSONs are generated into.
+
+            Writes to the SHARED config, like every other field here, so the desktop editor writes
+            new species where Blender will look for them. A Blender-only preference would put the
+            two back out of step, which is the exact failure this setting exists to end.
+            """
+            self._save("layerjson_dir", bpy.path.abspath(self.layerjson_dir) or None)
+            # The species index is cached; a repointed folder must take effect without a restart.
+            try:
+                import preview_assets
+                preview_assets._LJ_CACHE = None
+            except Exception:
+                pass
+
+        layerjson_dir: bpy.props.StringProperty(
+            name="LayerJSON folder",
+            description="Where generated LayerJSONs live. Searched BEFORE the copy shipped inside "
+                        "the add-on, so a species you generate overrides one we ship. Leave blank "
+                        "for the default beside the config",
+            subtype="DIR_PATH",
+            default="",
+            update=_write_layerjson)
+
         swatch_dir: bpy.props.StringProperty(
             name="Swatch Library folder",
             description="Where you unpacked SwatchLibrary.ovl's PNGs. Game data, so it is never "
@@ -1064,9 +1189,20 @@ def _register_ui():
             else:
                 col.label(text="Incomplete install — install the whole folder/zip, not a single "
                                ".py file", icon="ERROR")
+            col.prop(self, "layerjson_dir")
             col.prop(self, "swatch_dir")
             col.prop(self, "fur_library")
             col.prop(self, "extra_dirs")
+            # Which species the add-on can actually SEE. A species missing here builds from another
+            # animal's layer stack without erroring, so it belongs on screen, not in a log.
+            try:
+                import preview_assets
+                species = preview_assets.previewable_species()
+                col.label(text="Species with a LayerJSON: %d" % len(species),
+                          icon="CHECKMARK" if species else "ERROR")
+                col.label(text="        " + (", ".join(species) if species else "none found"))
+            except Exception as e:
+                col.label(text="LayerJSON scan failed: %s" % e, icon="ERROR")
             try:
                 sys.path.insert(0, _here())
                 import jwe3_config

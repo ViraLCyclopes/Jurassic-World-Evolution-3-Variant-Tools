@@ -75,7 +75,7 @@ def bake(model, interp="linear"):
     }
 
 
-def composite(albedo_linear, index_map, model, interp="linear"):
+def composite(albedo_linear, index_map, model, interp="linear", gate=None):
     """Overlay a pattern on a LINEAR albedo image. Returns a new (H, W, 3) float array.
 
     THE ONE DEFINITION OF THE COMPOSITE. `blender_pattern_nodes.build_group` implements the same
@@ -85,6 +85,10 @@ def composite(albedo_linear, index_map, model, interp="linear"):
     in both, and the selftest below pins them to the same arithmetic.
 
         out = albedo * (1 - opacity) + patternColour * opacity
+
+    `gate` is an optional bool array from `patchwork.gate_mask`: False means this texel's zone is
+    switched off, so the pattern does not paint there AT ALL. The shader branches past the whole
+    pattern block, so a gated texel returns its input albedo untouched rather than blending.
 
     `index_map` is the species' `u_basePatternMap` as a greyscale array -- bytes (0..255) or floats
     (0..1); both are accepted because the loaders in this package disagree about which they hand
@@ -114,6 +118,11 @@ def composite(albedo_linear, index_map, model, interp="linear"):
     opacity = np.interp(pos, grid, lut["opacity"][:, 0])[..., None]
 
     out = a[..., :3] * (1.0 - opacity) + colour * opacity
+    if gate is not None:
+        g = np.asarray(gate, dtype=bool)
+        if g.shape != a.shape[:2]:
+            raise ValueError("gate %r does not match albedo %r" % (g.shape, a.shape[:2]))
+        out = np.where(g[..., None], out, a[..., :3])
     return out
 
 
@@ -494,6 +503,22 @@ def selftest():
 
     # a NON-flat map with a real disagreement still warns, so the checks above are not vacuous
     assert resolve_threshold(np.append(blanked, np.uint8(200)), m3).warning is not None
+
+    # --- patchwork gate -------------------------------------------------------
+    # A gated texel must come back EXACTLY equal to its input albedo: the gate skips the whole
+    # pattern block in the shader, it does not blend towards the base.
+    import patchwork
+    alb = np.full((2, 2, 3), 0.25)
+    idx_m = np.full((2, 2), 200, np.uint8)
+    ungated = composite(alb, idx_m, m)
+    gate = np.array([[True, False], [False, True]])
+    gated = composite(alb, idx_m, m, gate=gate)
+    assert np.allclose(gated[0, 1], alb[0, 1]), gated[0, 1]
+    assert np.allclose(gated[1, 0], alb[1, 0]), gated[1, 0]
+    assert np.allclose(gated[0, 0], ungated[0, 0]), (gated[0, 0], ungated[0, 0])
+    # an all-True gate must be byte-identical to passing none
+    assert np.allclose(composite(alb, idx_m, m, gate=np.ones((2, 2), bool)), ungated)
+
     print("selftest ok")
 
 

@@ -117,6 +117,84 @@ def is_variant_fgm(path: str) -> bool:
         return False
 
 
+VARIANTSET_SHADER = "DinosaurLayered_VariantSet"
+
+
+def is_variantset_fgm(path: str) -> bool:
+    """True if this .fgm is a COSMETIC SKIN (variantset), not a colour variant.
+
+    A variantset is not loadable by `load_fgm` -- it carries no palette parameters at all, which is
+    why importing one used to just fail. It holds two textures and four flags:
+
+        pBaseDiffuseTexture              the skin's base diffuse -- this is the whole point
+        pFeathersBaseDiffuseTexture      ditto for feathers
+        pEnableBaseDiffuseTexture        whether the override applies
+        pEnableFeathersBaseDiffuseTexture
+        pEnableNormalContrast / pNormalContrast
+
+    Everything downstream -- layer stack, masks, height, roughness, grade -- is unchanged, so a
+    variantset means "same animal, different skin".
+    """
+    try:
+        import xml.etree.ElementTree as ET
+        return ET.parse(path).getroot().get("shader_name") == VARIANTSET_SHADER
+    except Exception:
+        return False
+
+
+def load_variantset_fgm(path: str) -> dict:
+    """{'base_diffuse': <abs path or None>, 'feathers_diffuse': ..., flags...} for a variantset.
+
+    Texture names come from the .fgm's own dependency list (`part_manifest.fgm_slots`), then are
+    resolved to the extracted .png beside it. `pNormalContrast` is READ AND REPORTED but not applied
+    anywhere -- how the shader consumes it has not been traced, and only 4 of the 16 shipped
+    variantsets use it (0.18 on spinosaurusjwr a/b/c, 0.13 on velociraptorjwr_b). Guessing a formula
+    for a parameter this subtle is how you get a plausible-looking wrong render.
+    """
+    import os
+    import xml.etree.ElementTree as ET
+    root = ET.parse(path).getroot()
+    attrs = {a.get("name"): (a.findtext("value") or "").strip()
+             for a in root.findall("./attributes/attribinfo")}
+
+    def _flag(name):
+        return str(attrs.get(name, "0")).strip() in ("1", "1.0", "true", "True")
+
+    def _num(name):
+        try:
+            return float(attrs.get(name, "0") or 0.0)
+        except ValueError:
+            return 0.0
+
+    folder = os.path.dirname(os.path.abspath(path))
+    slots = {}
+    try:
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor"))
+        import part_manifest
+        slots = part_manifest.fgm_slots(path) or {}
+    except Exception:
+        pass
+
+    def _resolve(slot):
+        dep = slots.get(slot)
+        if not dep:
+            return None
+        # the dependency names a .tex; the extraction beside it is the .png
+        stem = os.path.splitext(os.path.basename(dep))[0]
+        png = os.path.join(folder, stem + ".png")
+        return png if os.path.isfile(png) else None
+
+    return {
+        "path": path,
+        "base_diffuse": _resolve("pBaseDiffuseTexture") if _flag("pEnableBaseDiffuseTexture") else None,
+        "feathers_diffuse": (_resolve("pFeathersBaseDiffuseTexture")
+                             if _flag("pEnableFeathersBaseDiffuseTexture") else None),
+        "enableNormalContrast": _flag("pEnableNormalContrast"),
+        "normalContrast": _num("pNormalContrast"),      # reported only -- NOT applied
+    }
+
+
 def load_fgm(path: str) -> VariantModel:
     """
     Load a JWE3 dinosaur variant FGM file and return a VariantModel.

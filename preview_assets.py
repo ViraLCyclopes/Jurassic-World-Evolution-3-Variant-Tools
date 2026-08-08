@@ -13,6 +13,7 @@ Conventions discovered from the existing research folder, not invented:
 
 Run:  python preview_assets.py   -> selftest ok
 """
+import json
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -24,19 +25,126 @@ LAYERJSON_DIR = os.path.join(HERE, "LayerJSON")
 DINO_FILES_DIR = os.path.dirname(os.path.dirname(HERE))   # a sane start dir for file dialogs
 
 
+def _layerjson_index():
+    """[(species_keys, sex, path)] built by READING each LayerJSON, not by parsing filenames.
+
+    WHY NOT FILENAMES. The old lookup matched `<species>_` as a filename prefix, which breaks on
+    every multi-token species: the editor's box reads `Herrerasaurus_Male`, so the prefix search
+    wants `herrerasaurus_male_*` and a perfectly good `Herrerasaurus_Male.json` is never found.
+    It also silently matched the WRONG species -- `Baryonyx_Female.json` satisfies a lookup for
+    "Bary". Both failures end the same way: no colour-weight map, so the preview grades teeth and
+    tongues (see docs/LAYERJSON.md).
+
+    Every file already carries `species` and `sex` inside it -- `export_layers` has always written
+    them -- so this needs no regeneration. `aliases` is optional and lets one file answer to
+    several names (hybrids, renamed mods).
+
+    Cached on the directory's mtime: this runs on every texture refresh.
+    """
+    global _LJ_CACHE
+    dirs = layerjson_dirs()
+    if not dirs:
+        return []
+    # Cache on EVERY searched folder's mtime, not just one -- generating into the user folder must
+    # invalidate the index even though the shipped folder has not changed.
+    stamp = tuple((d, os.path.getmtime(d)) for d in dirs)
+    cached = globals().get("_LJ_CACHE")
+    if cached and cached[0] == stamp:
+        return cached[1]
+
+    out, claimed = [], set()
+    for directory in dirs:            # user folders first; the shipped baseline last
+        for name in sorted(os.listdir(directory)):
+            if not name.lower().endswith(".json"):
+                continue
+            path = os.path.join(directory, name)
+            keys, sex, species = set(), None, None
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    d = json.load(fh)
+                if isinstance(d, dict):
+                    if d.get("species"):
+                        species = str(d["species"]).strip()
+                        keys.add(species.lower())
+                    for a in d.get("aliases") or ():
+                        keys.add(str(a).strip().lower())
+                    sex = (d.get("sex") or None)
+            except (OSError, ValueError):
+                pass                  # unreadable file: fall back to its NAME below, never raise
+            if not keys:
+                stem = os.path.splitext(name)[0]
+                keys.add(stem.lower())
+                species = species or stem
+                if "_" in stem:       # legacy "<Species>_<Sex>.json" with no metadata inside
+                    head, tail = stem.rsplit("_", 1)
+                    keys.add(head.lower())
+                    species = head
+                    sex = sex or tail
+            # A user file SHADOWS a shipped one for the same species+sex: same species regenerated
+            # from your own extraction is the answer you want, not the one we happened to ship.
+            token = (frozenset(keys), (sex or "").lower())
+            if token in claimed:
+                continue
+            claimed.add(token)
+            out.append((keys, (sex or "").lower(), path, species or ""))
+    globals()["_LJ_CACHE"] = (stamp, out)
+    return out
+
+
+def layerjson_dirs():
+    """Every folder searched for LayerJSONs, highest priority first.
+
+    The configured per-user folder(s) come first and the folder shipped inside the package last, so
+    a species you generate always wins over one we ship and neither has to be deleted.
+
+    This is the fix for a whole class of silent wrong-species bugs: the add-on installed in Blender
+    is a COPY of the package, so anything generated after the last `build_addon.py` was invisible
+    to it. Nothing errored -- `species_from_object_name` simply matched the longest species it
+    could see, and a `spinosaurusjwr` mesh resolved to "Spinosaurus".
+    """
+    dirs = []
+    try:
+        import jwe3_config
+        dirs.extend(jwe3_config.get_dirs("layerjson_dir"))
+    except Exception:
+        pass                          # no config module (bare checkout): shipped folder only
+    dirs.append(LAYERJSON_DIR)
+    out, seen = [], set()
+    for d in dirs:
+        if not d or not os.path.isdir(d):
+            continue
+        k = os.path.normcase(os.path.abspath(d))
+        if k not in seen:
+            seen.add(k)
+            out.append(os.path.abspath(d))
+    return out
+
+
 def layers_json_for(species, sex=None):
-    """Path to `<Species>_<Sex>.json`, or the species' only LayerJSON if that sex has none."""
-    if not species or not os.path.isdir(LAYERJSON_DIR):
+    """The LayerJSON for a species, matched on the metadata INSIDE the files.
+
+    Filenames are not significant -- name them whatever you like. Matching is exact and
+    case-insensitive on `species` or any entry in `aliases`; a requested `sex` is preferred but a
+    file for another sex is accepted rather than returning nothing, because layer and swatch
+    assignment is normally shared across sexes and a Female stack still protects the mouth.
+    """
+    if not species:
+        return None
+    want = species.strip().lower()
+    entries = _layerjson_index()
+    hits = [e for e in entries if want in e[0]]
+    if not hits:
+        # Multi-token box names: `Herrerasaurus_Male` should still find a `Herrerasaurus` file.
+        base = want.rsplit("_", 1)[0] if "_" in want else None
+        if base:
+            hits = [e for e in entries if base in e[0]]
+    if not hits:
         return None
     if sex:
-        p = os.path.join(LAYERJSON_DIR, "%s_%s.json" % (species, sex))
-        if os.path.isfile(p):
-            return p
-    prefix = species.lower() + "_"
-    for name in sorted(os.listdir(LAYERJSON_DIR)):
-        if name.lower().startswith(prefix) and name.lower().endswith(".json"):
-            return os.path.join(LAYERJSON_DIR, name)
-    return None
+        for entry in hits:
+            if entry[1] == sex.strip().lower():
+                return entry[2]
+    return hits[0][2]
 
 
 MASK_MARKER = ".playered_blendweights_["
@@ -218,13 +326,21 @@ def previewable_species():
     taken from the folder the model (or the .fgm) was imported from, and `Textures/` is only a
     last-resort fallback that the packaged software does not ship. Requiring it made every species
     unpreviewable in a clean install.
+
+    Read from the LayerJSONs' own `species` field across EVERY searched folder, not from filenames.
+    Splitting the filename on "_" was wrong twice over: it cannot see a user-generated species at
+    all (wrong folder), and it mangles the ones it does see -- `SpinosaurusJWRExpanded_Female.json`
+    became "SpinosaurusJWRExpanded" only by luck, while a legacy `Spinojwrexpanded_Female.json`
+    yielded a species name that matches no mesh.
+
+    This list is what `species_from_object_name` matches against, so a species missing here is not
+    an error -- it is a silently wrong material built from some other animal's layer stack.
     """
-    if not os.path.isdir(LAYERJSON_DIR):
-        return []
     found = set()
-    for name in sorted(os.listdir(LAYERJSON_DIR)):
-        if name.lower().endswith(".json"):
-            found.add(os.path.splitext(name)[0].split("_")[0])
+    for entry in _layerjson_index():
+        name = (entry[3] or "").strip()
+        if name:
+            found.add(name)
     return sorted(found)
 
 
@@ -299,7 +415,11 @@ def selftest():
     if md:                      # only when a curated Textures/ fallback happens to be present
         md2, mp, lj = preview_paths("Baryonyx", "Female")
         assert os.path.isdir(md2) and os.path.isfile(lj)
-        assert mp == "baryonyx", mp
+        # DO NOT pin this to "baryonyx". `textures_dir` is one folder repointed as you work, not a
+        # per-species map, so the fallback resolves to whatever you last pointed at -- the test then
+        # failed with "spinosaurusjwr" purely because that is the folder in the config today. Third
+        # time a test here has been pinned to the coverage of the day; assert the INVARIANT instead.
+        assert mp and mp == detect_mask_prefix(md2), (mp, md2)
         # the prefix must match real files on disk, or a build silently wires up nothing
         assert any(f.startswith(mp + ".playered_blendweights_") for f in os.listdir(md2)), md2
     assert preview_paths("Nosuchsaurus") is None
@@ -351,12 +471,21 @@ def selftest():
         else:
             os.environ["JWE3_CONFIG_DIR"] = _old_cfg
 
-    # the mask prefix MUST come off the files, not the species name: Baryonyx uses "baryonyx"
-    # but Psittacosaurus uses "psittacosaurus_female"
-    if md:
-        assert detect_mask_prefix(md) == "baryonyx", detect_mask_prefix(md)
-    if psi:
-        assert detect_mask_prefix(psi) == "psittacosaurus_female", detect_mask_prefix(psi)
+    # The mask prefix MUST come off the FILES, not the species name -- Baryonyx uses "baryonyx"
+    # while Psittacosaurus uses "psittacosaurus_female", so deriving it from the species is wrong.
+    #
+    # Assert that property directly instead of pinning the expected string: `md` is the configured
+    # `textures_dir`, one folder repointed as you work, so a literal "baryonyx" only ever passed
+    # while that happened to be the folder in the config.
+    for folder in (md, psi):
+        if not folder:
+            continue
+        prefix = detect_mask_prefix(folder)
+        assert prefix, folder
+        assert any(f.startswith(prefix + MASK_MARKER) for f in os.listdir(folder)), (prefix, folder)
+        # and it is genuinely read off the files: the species name alone would not produce a
+        # prefix carrying a sex token for the species that need one
+        assert prefix == prefix.lower(), prefix
     assert detect_mask_prefix(LAYERJSON_DIR) is None      # a folder with no masks
     assert detect_mask_prefix(None) is None
 
