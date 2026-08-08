@@ -144,17 +144,70 @@ class PreviewBridge:
         """True if the listener replies at all (a framed reply, even ok:false, means it's alive)."""
         return self._request({"cmd": "ping"}) is not None
 
-    def build_material(self, object_name, mask_dir, mask_prefix, layers_json):
-        """Build+assign the layer material onto the user's imported mesh object `object_name`."""
+    def build_material(self, object_name, mask_dir, mask_prefix, layers_json,
+                       base_diffuse=None, skin_name=None):
+        """Build+assign the layer material onto the user's imported mesh object `object_name`.
+
+        `base_diffuse` / `skin_name` carry a VARIANTSET (cosmetic skin): the species base diffuse is
+        swapped for the set's own and the material is tagged with which one, everything else being
+        identical. Omit both for the plain species build.
+        """
         self._object = object_name
-        r = self._request({"cmd": "build", "object": object_name, "mask_dir": mask_dir,
-                           "mask_prefix": mask_prefix, "layers_json": layers_json})
+        msg = {"cmd": "build", "object": object_name, "mask_dir": mask_dir,
+               "mask_prefix": mask_prefix, "layers_json": layers_json}
+        if base_diffuse:
+            msg["base_diffuse"] = base_diffuse
+        if skin_name:
+            msg["skin_name"] = skin_name
+        r = self._request(msg)
         return bool(r and r.get("ok"))
 
     def push(self, model):
         """Re-grade the current material from the model."""
         r = self._request({"cmd": "grade", "block": model_to_block(model)})
         return bool(r and r.get("ok"))
+
+    def push_pattern(self, pattern_model, source="live", index_map=None, part="",
+                     object_name=None, interp="linear", patchwork_map=None):
+        """Send an IN-MEMORY pattern to Blender. Returns (ok, message).
+
+        Sends data, not a path. The editor's model may hold unsaved edits -- the whole point of a
+        live preview is seeing a key you are still dragging -- so writing a temp .fgm just to have
+        the listener read it back would add a round trip and a file that can be left behind.
+
+        The payload is exactly what `export_pattern.export()` builds from a file, so the node
+        builder on the far side cannot tell the difference.
+        """
+        import pattern_lut
+        try:
+            lut = pattern_lut.bake(pattern_model, interp)
+            idx, byte = pattern_lut.threshold_from_model(pattern_model, interp=interp)
+            data = {
+                "source": source,
+                "model": pattern_model.to_dict(),
+                "lut": {k: v.tolist() for k, v in lut.items()},
+                "interp": interp,
+                "threshold": {"index": float(idx), "byte": int(byte)},
+            }
+        except Exception as e:
+            return False, "could not bake pattern: %s: %s" % (type(e).__name__, e)
+
+        cmd = {"cmd": "pattern", "data": data, "part": part}
+        if index_map:
+            cmd["index_map"] = index_map
+        if patchwork_map:
+            cmd["patchwork_map"] = patchwork_map
+        if object_name:
+            cmd["object"] = object_name
+        r = self._request(cmd)
+        if not r:
+            return False, "no reply from Blender (is the listener add-on enabled?)"
+        if not r.get("ok"):
+            return False, str(r.get("error") or "unknown error")
+        msg = ", ".join(r.get("applied") or []) or "applied"
+        if r.get("note"):
+            msg += "  -- " + r["note"]
+        return True, msg
 
     def last_import(self):
         """What Blender's File > Import last loaded, or None if unreachable.
@@ -221,6 +274,34 @@ def selftest():
     # gradient_exact agrees with the block flag
     assert PreviewBridge.gradient_exact(9, 10) is True
     assert PreviewBridge.gradient_exact(999, 3) is False
+
+    # Pattern preview sends the EDITOR'S IN-MEMORY model, not a file path. Exercise the protocol
+    # boundary without Blender so a renamed key or a numpy value leaking into JSON is caught here.
+    from pattern_model import PatternModel
+    pm = PatternModel.template()
+    pm.colourKeys[0] = (0, [0.2, 0.4, 0.6])
+    pm.opacityKeys[0] = (0, 1.0)
+
+    class _RecordingBridge(PreviewBridge):
+        def __init__(self):
+            super().__init__()
+            self.request = None
+        def _request(self, obj):
+            self.request = obj
+            # Prove the real socket encoder can accept the complete payload.
+            json.dumps(obj)
+            return {"ok": True, "applied": ["mesh (material)"], "note": None}
+
+    rb = _RecordingBridge()
+    ok, message = rb.push_pattern(pm, source="unsaved", index_map=r"C:\maps\index.png",
+                                  object_name="mesh")
+    assert ok and "mesh (material)" in message, (ok, message)
+    assert rb.request["cmd"] == "pattern" and rb.request["object"] == "mesh", rb.request
+    assert rb.request["index_map"].endswith("index.png"), rb.request
+    assert rb.request["data"]["model"] == pm.to_dict(), rb.request["data"]["model"]
+    assert set(rb.request["data"]["lut"]) == {"colour", "emissive", "opacity"}
+    assert isinstance(rb.request["data"]["threshold"]["byte"], int)
+
     # a bridge with no listener returns a clean failure, never raises
     assert PreviewBridge(port=59999).connect() is False
     print("selftest ok")

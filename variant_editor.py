@@ -70,6 +70,7 @@ class EditorController:
         self.window = window
         self.bridge = bridge
         self.template_path = None     # set by "New from template" until the first Save As
+        self.variantset = None        # cosmetic skin adopted by opening a *_variantset_*.fgm
 
         window.act_open.triggered.connect(self.on_open)
         window.act_new.triggered.connect(self.on_new)
@@ -88,7 +89,15 @@ class EditorController:
 
     # -- actions (no dialogs) ---------------------------------------------
     def do_open(self, path):
-        """Load a loose .fgm into the editor and infer its species/sex for the preview dropdown."""
+        """Load a loose .fgm into the editor and infer its species/sex for the preview dropdown.
+
+        A VARIANTSET is handled separately: it carries no palette parameters at all, so `load_fgm`
+        cannot read one and opening it used to fail outright. It is a cosmetic SKIN -- a base
+        diffuse swap over the same layer stack -- so it is adopted as the skin for the next Build
+        rather than loaded as a variant.
+        """
+        if fgm_io.is_variantset_fgm(path):
+            return self.do_open_variantset(path)
         model = fgm_io.load_fgm(path)
         self.template_path = None
         self.window.load_model(model, path)
@@ -97,6 +106,32 @@ class EditorController:
         self.window.statusBar().showMessage(
             "opened %s (%s%s)" % (os.path.basename(path), species or "?", "/" + sex if sex else ""))
         return model
+
+    def do_open_variantset(self, path):
+        """Adopt a variantset as the cosmetic skin for the next Build. Returns None (no model).
+
+        Deliberately does NOT touch the loaded variant: skin and colour grade are independent axes
+        in game, so opening a skin must not discard the grade you are working on.
+        """
+        info = fgm_io.load_variantset_fgm(path)
+        self.variantset = info if info.get("base_diffuse") else None
+        species, sex = fgm_io.species_sex_from_filename(path)
+        if species:
+            self.select_species(species)
+        if self.variantset is None:
+            self.window.statusBar().showMessage(
+                "%s is a cosmetic skin, but its base diffuse could not be found next to it "
+                "(extract the .png beside the .fgm)" % os.path.basename(path))
+            return None
+        extra = ""
+        if info.get("enableNormalContrast"):
+            # Say it rather than silently ignore it -- the render will differ from the game by
+            # however much this contributes, and nobody should have to discover that by eye.
+            extra = "   (pNormalContrast %.3f is NOT applied - not yet traced)" % info["normalContrast"]
+        self.window.statusBar().showMessage(
+            "skin: %s -> %s. Press Build to apply it.%s"
+            % (os.path.basename(path), os.path.basename(info["base_diffuse"]), extra))
+        return None
 
     def do_new(self, template_path):
         """Start a fresh variant. The template supplies everything the model does not carry
@@ -153,9 +188,15 @@ class EditorController:
         except AssetError as e:
             self.window.statusBar().showMessage(str(e).split("\n")[0])
             return False
-        ok = self.bridge.build_material(object_name, mask_dir, mask_prefix, layers_json)
+        vs = getattr(self, "variantset", None)
+        ok = self.bridge.build_material(
+            object_name, mask_dir, mask_prefix, layers_json,
+            base_diffuse=(vs or {}).get("base_diffuse"),
+            skin_name=(os.path.basename((vs or {}).get("path", "")) or None))
         if ok:
-            self.window.statusBar().showMessage("material built on %r - grading..." % object_name)
+            skin = ("  skin %s" % os.path.basename(vs["path"])) if vs else ""
+            self.window.statusBar().showMessage(
+                "material built on %r%s - grading..." % (object_name, skin))
             self.window._push_now()
         else:
             self.window.statusBar().showMessage(
@@ -402,7 +443,10 @@ def selftest():
     if have_textures:
         mask_dir, mask_prefix, layers_json = paths
         assert os.path.isdir(mask_dir) and os.path.isfile(layers_json), paths
-        assert mask_prefix == "baryonyx", mask_prefix
+        # NOT pinned to "baryonyx": the folder here is the configured `textures_dir`, which is one
+        # folder repointed as you work, so the literal only passed while that was the folder in the
+        # config. The check that matters is the next one -- the prefix matches real files.
+        assert mask_prefix and mask_prefix == mask_prefix.lower(), mask_prefix
         # the prefix must actually match the mask files on disk, or build silently wires nothing
         assert any(f.startswith(mask_prefix + ".playered_blendweights_")
                    for f in os.listdir(mask_dir)), \
@@ -411,7 +455,10 @@ def selftest():
 
     class _FakeBridge:
         def __init__(self): self.built = None; self.pushes = 0
-        def build_material(self, obj, md, mp, lj): self.built = (obj, md, mp, lj); return True
+        def build_material(self, obj, md, mp, lj, base_diffuse=None, skin_name=None):
+            self.built = (obj, md, mp, lj)
+            self.skin = (base_diffuse, skin_name)     # variantset build carries the skin through
+            return True
         def push(self, model): self.pushes += 1; return True
 
     fake = _FakeBridge()

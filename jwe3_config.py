@@ -42,6 +42,7 @@ ENV = {
     "swatch_dir": "JWE3_SWATCH_DIR",
     "fur_library": "JWE3_FUR_LIBRARY",
     "captures_dir": "JWE3_CAPTURES_DIR",
+    "layerjson_dir": "JWE3_LAYERJSON_DIR",
 }
 KEYS = tuple(ENV)
 
@@ -52,7 +53,7 @@ KEYS = tuple(ENV)
 # Library across drives. `get()` still returns a single folder (the first that exists) so every
 # existing caller keeps working; `get_dirs()` returns all of them, in order, for the lookups that
 # should search more than one.
-MULTI = ("swatch_dir", "fur_library")
+MULTI = ("swatch_dir", "fur_library", "layerjson_dir")
 
 
 # ---------------------------------------------------------------- config file
@@ -261,12 +262,36 @@ def detect_captures_dir():
     return os.path.abspath(d) if os.path.isdir(d) else None
 
 
+def detect_layerjson_dir():
+    """The per-user LayerJSON folder, `<config>/LayerJSON`, CREATED if it does not exist.
+
+    Generated LayerJSONs are user data and must not live inside the install. They used to be written
+    into the package's own `LayerJSON/`, which the Blender add-on then shipped a COPY of -- so a
+    species generated after the last `build_addon.py` was invisible to the add-on while the desktop
+    editor saw it fine. The symptom was not an error: `species_from_object_name` picks the longest
+    match among the species it can SEE, so importing a variant onto a `spinosaurusjwr` mesh silently
+    resolved to "Spinosaurus" and built the wrong animal's layer stack, painting scale swatches over
+    the mouth and teeth.
+
+    Same rule the harvesting tools already follow -- per-user state lives beside the config, never
+    inside the install, because a reinstall replaces the install. Created eagerly so `get()`'s
+    `isdir` check passes on a first run.
+    """
+    d = os.path.join(config_dir(), "LayerJSON")
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError:
+        return None
+    return os.path.abspath(d)
+
+
 DETECTORS = {
     "game_dir": lambda: (detect_game_dirs() or [None])[0],
     "cobra_tools": detect_cobra_tools,
     "swatch_dir": detect_swatch_dir,
     "fur_library": detect_fur_library,
     "captures_dir": detect_captures_dir,
+    "layerjson_dir": detect_layerjson_dir,
 }
 
 
@@ -393,8 +418,15 @@ def selftest():
         write(game_dir=None)
 
         assert set(KEYS) == {"game_dir", "cobra_tools", "swatch_dir", "fur_library",
-                             "captures_dir"}, KEYS
-        assert set(MULTI) <= set(KEYS) and set(MULTI) == {"swatch_dir", "fur_library"}, MULTI
+                             "captures_dir", "layerjson_dir"}, KEYS
+        assert set(MULTI) <= set(KEYS) and set(MULTI) == {"swatch_dir", "fur_library",
+                                                          "layerjson_dir"}, MULTI
+
+        # layerjson_dir must ALWAYS resolve -- it is where generated LayerJSONs are written, and a
+        # None there sends them back inside the install, which is the bug this key exists to fix.
+        lj = get("layerjson_dir")
+        assert lj and os.path.isdir(lj), lj
+        assert os.path.normcase(lj).startswith(os.path.normcase(os.path.abspath(config_dir()))), lj
 
         # captures_dir resolves like every other setting: env -> config -> detection.
         # It used to be a module constant in harvest_blocks.py (%TEMP%\RenderDoc), which is fine on

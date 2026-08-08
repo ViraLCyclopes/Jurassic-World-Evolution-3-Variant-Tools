@@ -511,6 +511,22 @@ def layer_group(L, mask_path, name):
         htex.location = (-450, 500)
         g.links.new(luv, htex.inputs["Vector"])
         # %977-%978: sample * (%896 * %97) * pHeightScale
+        #
+        # `norm` FEEDS BOTH ACCUMULATORS, AND THAT IS CORRECT. Do not "fix" it.
+        #
+        # 2026-08-07 I split them -- bump keeping norm, LayerHeight taking the raw pHeightScale --
+        # on the theory that feature-size normalisation is a displacement concern with no meaning
+        # for the palette. A region fit against the game's albedo seemed to support it (saturation
+        # 0.047 -> 0.138 against the game's 0.143).
+        #
+        # IT WAS WRONG, and the fit was measuring its own artefact. Removing norm multiplies the
+        # palette parameter by the UV tile (7..30x), taking the gradient to ~1700 cycles across the
+        # body. Adjacent texels then land on unrelated palette colours and the mesh renders as
+        # dense purple/blue SPECKLE -- which also inflates any per-region saturation statistic, so
+        # the number improved while the render got obviously worse. Caught by eye in Blender, not
+        # by the measurement. See [[verify-measurement-apparatus]].
+        #
+        # The reciprocal keeps the palette parameter in a sane range; that is what it is for.
         h_bump = m("MULTIPLY", htex.outputs["Color"],
                    p.get("pHeightScale", [0.0])[0] * norm * HEIGHT_SCALE)
         # %979-%980: %97 * 0.01 * blockHeightOffset, and the block stores pHeightOffset RAW,
@@ -682,7 +698,8 @@ def _base_texture(tex_dir, prefix, slot, channel, fgm_path=None):
     return p if os.path.isfile(p) else None
 
 
-def base_group(tex_dir, prefix, levels=(0.0, 0.5, 1.0), name="JWE3_Base", fgm_path=None):
+def base_group(tex_dir, prefix, levels=(0.0, 0.5, 1.0), name="JWE3_Base", fgm_path=None,
+               diffuse_override=None):
     """The species' own base maps -- the part the 16 layers sit ON TOP OF.
 
     Leaving these out was the single biggest error in the first node build: the layer stack alone is
@@ -713,7 +730,11 @@ def base_group(tex_dir, prefix, levels=(0.0, 0.5, 1.0), name="JWE3_Base", fgm_pa
     gamma = max(2.0 * mid if mid < 0.5 else 0.5 / max(1.0 - mid, 1e-6), 1.0 / 511.0)
     inv_span = 1.0 / max(hi - lo, 1e-6)
 
-    dp = _base_texture(tex_dir, prefix, "pBaseDiffuseTexture", "", fgm_path)
+    # A VARIANTSET overrides the species base diffuse and nothing else. `DinosaurLayered_VariantSet`
+    # FGMs carry exactly two textures (pBaseDiffuseTexture, pFeathersBaseDiffuseTexture) and four
+    # flags -- they are the COSMETIC SKIN, not a colour grade. The layer stack, masks, height and
+    # roughness are all unchanged, so swapping this one path is the whole feature.
+    dp = diffuse_override or _base_texture(tex_dir, prefix, "pBaseDiffuseTexture", "", fgm_path)
     if dp:
         dtex = g.nodes.new("ShaderNodeTexImage")
         dtex.image = _img(dp, noncolor=False)
@@ -807,7 +828,7 @@ def _layout_tail(nt, prev, base):
 
 
 def build(layers, mask_dir, mask_prefix, mat_name="JWE3_Layered", bump_distance=1.0,
-          levels=(0.0, 0.5, 1.0), use_ao=True, fgm_path=None):
+          levels=(0.0, 0.5, 1.0), use_ao=True, fgm_path=None, base_diffuse_override=None):
     """Build the material as a left-to-right chain of per-layer groups.
 
     Every layer that has a mask channel is included, even if it has no texture in a given slot --
@@ -870,7 +891,8 @@ def build(layers, mask_dir, mask_prefix, mat_name="JWE3_Layered", bump_distance=
     nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
 
     base = nt.nodes.new("ShaderNodeGroup")
-    base.node_tree = base_group(mask_dir, mask_prefix, levels, f"{mat_name}_Base", fgm_path)
+    base.node_tree = base_group(mask_dir, mask_prefix, levels, f"{mat_name}_Base", fgm_path,
+                                diffuse_override=base_diffuse_override)
     base.width = 220
     base.label = "base diffuse / normal / AO"
     nt.links.new(uv.outputs["UV"], base.inputs["UV"])

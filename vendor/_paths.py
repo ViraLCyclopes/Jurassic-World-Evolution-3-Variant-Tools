@@ -53,10 +53,55 @@ def swatch_dir():
     return _config("swatch_dir")
 
 
-def layerjson_dir():
+def shipped_layerjson_dir():
+    """The LayerJSONs that ship INSIDE the package. Read-only baseline, always searched last."""
     d = os.path.join(PKG, "LayerJSON")
     os.makedirs(d, exist_ok=True)
     return d
+
+
+def layerjson_dir():
+    """Where a NEWLY generated LayerJSON is written -- the per-user folder, not the package.
+
+    Writing into the package was the old behaviour and it does not survive a reinstall: the Blender
+    add-on is a COPY of this folder, so a species generated after the last `build_addon.py` existed
+    only in the source tree and the add-on could not see it. See `jwe3_config.detect_layerjson_dir`
+    for what that silently did to the material.
+    """
+    d = _config("layerjson_dir")
+    if d:
+        try:
+            os.makedirs(d, exist_ok=True)
+            return d
+        except OSError:
+            pass
+    return shipped_layerjson_dir()
+
+
+def layerjson_dirs():
+    """Every folder to SEARCH for LayerJSONs, highest priority first.
+
+    User folders win over the shipped ones, so regenerating a species overrides what we ship
+    without having to delete anything.
+    """
+    dirs = []
+    if PKG not in sys.path:
+        sys.path.insert(0, PKG)
+    try:
+        import jwe3_config
+        dirs.extend(jwe3_config.get_dirs("layerjson_dir"))
+    except Exception:
+        pass
+    dirs.append(shipped_layerjson_dir())
+    out, seen = [], set()
+    for d in dirs:
+        if not d or not os.path.isdir(d):
+            continue
+        k = os.path.normcase(os.path.abspath(d))
+        if k not in seen:
+            seen.add(k)
+            out.append(os.path.abspath(d))
+    return out
 
 
 def palettejson_dir():
@@ -85,12 +130,19 @@ def selftest():
     assert os.path.isdir(DATA), DATA
     assert os.path.isfile(coeffs()), coeffs()
     assert os.path.isfile(swatch_params()), swatch_params()
-    for d in (layerjson_dir(), palettejson_dir()):
+    for d in (layerjson_dir(), palettejson_dir(), shipped_layerjson_dir()):
         assert os.path.isdir(d), d
-    # every resolved path must stay INSIDE the package, except the two that legitimately do not
-    for p in (coeffs(), swatch_params(), layerjson_dir(), palettejson_dir()):
+    # every resolved path must stay INSIDE the package, except the ones that legitimately do not.
+    # layerjson_dir() is now deliberately OUTSIDE it -- generated LayerJSONs are user data and a
+    # reinstall replaces the install, taking them with it.
+    for p in (coeffs(), swatch_params(), palettejson_dir(), shipped_layerjson_dir()):
         assert os.path.normcase(os.path.abspath(p)).startswith(
             os.path.normcase(os.path.abspath(PKG))), p
+    # the shipped folder must always be searched, and never be the FIRST choice when a user
+    # folder is configured -- otherwise a regenerated species cannot override what we ship
+    dirs = layerjson_dirs()
+    assert dirs, dirs
+    assert os.path.normcase(dirs[-1]) == os.path.normcase(shipped_layerjson_dir()), dirs
     print("selftest ok")
 
 

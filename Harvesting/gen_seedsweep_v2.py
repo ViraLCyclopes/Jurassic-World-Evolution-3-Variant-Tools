@@ -132,6 +132,26 @@ def apply(loader, seed, template, fingerprint):
     loader.write_memory_data()
 
 
+def held_seeds():
+    """Every seed whose coefficients we already hold. ONE definition, used by plan and selftest.
+
+    Reads the LAYERED store (`coeff_store`), which is the shipped table plus everything the user
+    has harvested. `export_palette.by_seed()` sees only the shipped half, so using it here made the
+    planner blind to its own results -- it re-staged the same seeds every pass and the plan looked
+    frozen no matter how much was banked. The selftest asserted contiguity against a DIFFERENT
+    held-set than the planner used, so it could not catch that; hence one function for both.
+    """
+    sys.path.insert(0, RESEARCH)
+    try:
+        import coeff_store
+        return set(coeff_store.harvested_seeds())
+    except Exception:
+        # Bare checkout without the layered store: still plans, just conservatively. Re-staging a
+        # held seed only wastes capture time; skipping a missing one would lose it silently.
+        import export_palette as ep
+        return set(ep.by_seed())
+
+
 def enumerate_hosts():
     """[(species, sex, realm, size)] for every dinosaur OVL, smallest first."""
     hosts = []
@@ -148,13 +168,22 @@ def enumerate_hosts():
     return hosts
 
 
-def plan():
-    """(seeds, hosts, fingerprints) or raises. Never touches a game file."""
-    sys.path.insert(0, RESEARCH)
-    import export_palette as ep
-    held = set(ep.by_seed())
+def plan(exclude=()):
+    """(seeds, hosts, fingerprints) or raises. Never touches a game file.
+
+    `exclude` drops host SPECIES by name -- for re-staging a seed that produced nothing on its last
+    host, where reusing that host would just repeat the result.
+
+    HELD COMES FROM `coeff_store`, NOT `export_palette.by_seed()`. `by_seed` reads only the SHIPPED
+    coefficient table, so every seed the user has actually harvested was invisible here and the
+    planner re-staged it pass after pass. Measured 2026-08-07: `by_seed` reported 110 seeds against
+    coeff_store's 124, and of the 14 seeds it wanted to stage across 0..63 only TWO (0 and 59) were
+    genuinely missing -- a capture session spent re-banking twelve seeds already in the store. It is
+    also why the plan looked frozen: it cannot see the thing that should change it.
+    """
+    held = held_seeds()
     seeds = sorted(set(range(SEED_LO, SEED_HI + 1)) - held)
-    hosts = enumerate_hosts()
+    hosts = [h for h in enumerate_hosts() if h[0] not in set(exclude)]
     fps = json.load(open(FINGERPRINTS))
     if len(hosts) < len(seeds):
         raise RuntimeError(f"only {len(hosts)} host OVLs for {len(seeds)} seeds")
@@ -165,8 +194,8 @@ def plan():
     return seeds, hosts[:len(seeds)], fps[:len(seeds)]
 
 
-def main():
-    seeds, hosts, fps = plan()
+def main(exclude=()):
+    seeds, hosts, fps = plan(exclude)
     Config, OvlFile = _cobra()
 
     tovl = open_ovl(species_ovl(TEMPLATE_SPECIES, "Female", TEMPLATE_REALM), Config, OvlFile)
@@ -263,12 +292,13 @@ def stage_females(only_missing=True):
     fine through cobra-tools, but the GAME CRASHES on load -- the aux ends up inconsistent. So this
     only works with the game closed. Verified the hard way 2026-07-25.
     """
-    import export_palette as ep
     Config, OvlFile = _cobra()
     # confirm the game is closed by trying to open a Female aux for writing
     man = json.load(open(MANIFEST))
     males = [h for h in man["hosts"] if h["sex"] == "Male"]
-    held = set(ep.by_seed())
+    # Same layered store `plan()` uses -- `export_palette.by_seed()` sees only the SHIPPED table, so
+    # `only_missing` was measuring against the wrong set and would re-stage seeds already banked.
+    held = held_seeds()
     todo = [h for h in males if (not only_missing or h["seed"] not in held)]
     print(f"staging {len(todo)} Female OVLs with update_aux=True (game MUST be closed)\n")
 
@@ -311,10 +341,10 @@ def stage_females(only_missing=True):
 def selftest():
     seeds, hosts, fps = plan()
     assert seeds == sorted(seeds), "seeds must be sorted"
-    # the run must be genuinely contiguous once merged with what we hold
-    sys.path.insert(0, RESEARCH)
-    import export_palette as ep
-    after = sorted(set(ep.by_seed()) | set(seeds))
+    # The run must be genuinely contiguous once merged with what we hold -- against the SAME
+    # held-set the planner used, or this asserts something the planner never promised.
+    held = held_seeds()
+    after = sorted(held | set(seeds))
     run = cur = 1
     for a, b in zip(after, after[1:]):
         cur = cur + 1 if b == a + 1 else 1
@@ -330,7 +360,7 @@ def selftest():
     assert len({key(f) for f in fps}) == len(fps), "duplicate fingerprint"
     print(f"selftest ok - {len(seeds)} seeds {seeds[0]}..{seeds[-1]}, "
           f"{len(hosts)} hosts, run after harvest {run}, "
-          f"{len(ep.by_seed()) + len(seeds)}/256 held")
+          f"{len(held) + len(seeds)}/256 held")
 
 
 if __name__ == "__main__":
@@ -341,4 +371,15 @@ if __name__ == "__main__":
     elif "--females" in sys.argv:
         stage_females()
     else:
-        main()
+        # --exclude Minmi,Lystrosaurus  -- re-stage a seed onto a DIFFERENT host. A seed that
+        # produced no usable block on its last host tells you nothing new from the same host, and
+        # host order is by OVL size, so without this the planner hands it straight back.
+        ex = ()
+        for i, a in enumerate(sys.argv):
+            if a == "--exclude" and i + 1 < len(sys.argv):
+                ex = tuple(s.strip() for s in sys.argv[i + 1].split(",") if s.strip())
+            elif a.startswith("--exclude="):
+                ex = tuple(s.strip() for s in a.split("=", 1)[1].split(",") if s.strip())
+        if ex:
+            print("excluding hosts: %s" % ", ".join(ex))
+        main(ex)

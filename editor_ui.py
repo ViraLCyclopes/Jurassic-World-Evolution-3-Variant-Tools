@@ -1,4 +1,4 @@
-"""Task 6: the PyQt5 editor window.
+﻿"""Task 6: the PyQt5 editor window.
 
 A `VariantEditorWindow` bound to one `VariantModel`. Every control writes straight into the model
 and schedules a debounced (~100 ms) `PreviewBridge.push(model)`; with `bridge=None` nothing is
@@ -545,6 +545,16 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         self.act_save.setShortcut(QtGui.QKeySequence.Save)
         self.act_save_as = menu.addAction("Save &As...")
         menu.addSeparator()
+        # Manual LayerJSON selection. Lookup matches on the metadata inside the files, but a
+        # species whose name in the combo differs from anything on disk cannot be matched at all --
+        # this is the way out, and it mirrors the exporter now taking a pasted folder path.
+        self.act_layerjson_gen = menu.addAction("&Generate LayerJSON from folder...")
+        self.act_layerjson_gen.triggered.connect(self.generate_layerjson_dialog)
+        self.act_layerjson = menu.addAction("Load &LayerJSON...")
+        self.act_layerjson.triggered.connect(self.load_layerjson_override)
+        self.act_layerjson_clear = menu.addAction("Clear LayerJSON override")
+        self.act_layerjson_clear.triggered.connect(self.clear_layerjson_override)
+        menu.addSeparator()
         self.act_quit = menu.addAction("&Quit")
         self.act_quit.triggered.connect(self.close)
 
@@ -574,7 +584,20 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         try:
             from pattern_tab import PatternTab
             self.pattern_tab = PatternTab()
-            self.pattern_tab.changed.connect(self._refresh_texture)
+            self.pattern_tab.changed.connect(self._on_pattern_changed)
+            self.pattern_tab.from_selected_requested.connect(self._pattern_from_selected)
+            # Immediate apply, bypassing the debounce. The debounced push only fires after an EDIT,
+            # so a pattern that is merely opened (or applied to a mesh built after it was loaded)
+            # never reaches Blender. This is the manual "put it on now" that was missing.
+            self.pattern_tab.apply_requested.connect(self._pattern_apply_now)
+            # DEBOUNCE the Blender push. The Qt overlay is a numpy composite and can run on every
+            # keystroke; a socket round trip plus a node-graph rebuild cannot, and firing one per
+            # character while someone types an RGB value would stall the UI behind the slowest of
+            # them. The local preview stays immediate; only the 3D view waits.
+            self._pattern_push_timer = QtCore.QTimer(self)
+            self._pattern_push_timer.setSingleShot(True)
+            self._pattern_push_timer.setInterval(250)
+            self._pattern_push_timer.timeout.connect(self._push_pattern_to_blender)
             self.tabs.addTab(self.pattern_tab, "Pattern")
         except Exception as e:                       # never let the pattern tab break the editor
             self.pattern_tab = None
@@ -586,6 +609,11 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         self.setMinimumSize(420, 300)
         self.resize(820, 900)   # wider: the diffuse preview is two images side by side
 
+        # Species changes move the answer, so the label has to follow it -- and it is set once here
+        # so the box is populated at startup rather than reading "-" until something happens.
+        self.species_combo.currentTextChanged.connect(lambda _t: self._update_layerjson_label())
+        self._update_layerjson_label()
+
         self.statusBar().showMessage("ready")
 
     def _build_preview_box(self):
@@ -595,6 +623,14 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         self.species_combo = QtWidgets.QComboBox()
         self.species_combo.setEditable(True)
         form.addRow("Species", self.species_combo)
+
+        # ALWAYS-VISIBLE state, not a note on the texture strip. Which LayerJSON is in force
+        # decides whether mouth, teeth and claws are protected from the grade, and when none is
+        # found the preview silently paints them -- so it belongs next to the species, on screen
+        # before any texture is loaded, rather than in a line that only appears afterwards.
+        self.layerjson_label = QtWidgets.QLabel("-")
+        self.layerjson_label.setWordWrap(True)
+        form.addRow("LayerJSON", self.layerjson_label)
 
         # Per-species texture folder. Replaces copying extracted texture sets into the install's
         # `Textures/<Species>` folder, which was lost on every reinstall and could not be shared.
@@ -648,7 +684,10 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         return box
 
     def _build_texture_box(self):
-        box = QtWidgets.QGroupBox("Diffuse  (before / after, at colourWeight 1)")
+        # NOT "at colourWeight 1" any more -- the real per-texel weight is used whenever the masks
+        # and LayerJSON resolve, which is what keeps teeth, claws and mouth unpainted. The status
+        # line under the images says which of the two you are looking at, and why.
+        box = QtWidgets.QGroupBox("Diffuse  (before / after)")
         lay = QtWidgets.QVBoxLayout(box)
 
         self.texture_view = _TextureView()
@@ -694,6 +733,54 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         self.texture_height.valueChanged.connect(lambda _v: self._refresh_texture())
         return box
 
+    def _height_for(self, shape):
+        """Per-texel composited layer height for `shape`, or None to fall back to the slider.
+
+        THIS IS THE HEIGHT THE SHADER ACTUALLY USES. The slider is a single value applied to the
+        whole texture, which is a slice through a palette that cycles many times across the body --
+        so the tint it shows depends entirely on where the slider sits. Measured on
+        `variant_01_11_edit2` (complexity 16): hue 72 deg at most slider positions and 140 deg at
+        0.5, a 68 deg swing from the same file. No slider position can agree with a render.
+
+        Composited exactly as `blender_layer_nodes` builds it -- same masks, same smoothstep
+        accumulation, same `pHeightScale / max(pUVTile)` -- so this preview and the node graph are
+        computing the same quantity and can be compared directly.
+
+        Returns None (and records why in `_h_status`) whenever the pieces are missing, because a
+        wrong height is worse than an honest fallback.
+        """
+        self._h_status = ""
+        try:
+            import json
+            import texture_preview as tp
+            import jwe3_config
+            from preview_assets import layers_json_for, detect_mask_prefix
+            species = (self.species_combo.currentText() or "").strip()
+            lj = getattr(self, "_layerjson_override", None) or (layers_json_for(species) if species else None)
+            if not lj:
+                self._h_status = "slider height (no LayerJSON)"
+                return None
+            md = jwe3_config.textures_dir()
+            prefix = detect_mask_prefix(md) if md else None
+            if not prefix:
+                self._h_status = "slider height (no blend-weight masks)"
+                return None
+            sd = jwe3_config.get("swatch_dir")
+            if not sd:
+                self._h_status = "slider height (swatch library not set)"
+                return None
+            data = json.load(open(lj, encoding="utf-8"))
+            layers = data["layers"] if isinstance(data, dict) else data
+            hm = tp.height_map(layers, md, "%s.playered_blendweights" % prefix, shape, swatch_dir=sd)
+            if hm is None:
+                self._h_status = "slider height (height slices unresolved)"
+                return None
+            self._h_status = "composited height %.4f..%.4f" % (float(hm.min()), float(hm.max()))
+            return hm
+        except Exception as e:
+            self._h_status = "slider height (%s: %s)" % (type(e).__name__, e)
+            return None
+
     def _colour_weight_for(self, shape):
         """The layer stack's per-pixel colourWeight for this species, or None if unavailable.
 
@@ -702,26 +789,226 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         species' LayerJSON and its blend-weight masks; falls back to a flat 1.0 (and says so) when
         either is missing, rather than failing to preview at all.
         """
+        # EVERY early return records WHY into _cw_status, which _refresh_texture puts on screen.
+        # The old version returned None on five different failures and said nothing, so a preview
+        # that was grading teeth and tongues looked identical to a correct one. That silence is the
+        # bug that started this: a missing LayerJSON reads as "the editor is fine".
+        self._cw_status = ""
         try:
             import json
             import texture_preview as tp
             from preview_assets import layers_json_for, mask_dir_for, detect_mask_prefix
             species = (self.species_combo.currentText() or "").strip()
             if not species:
+                self._cw_status = "no species selected - mouth/claw protection OFF"
                 return None
-            lj = layers_json_for(species)
+            # An explicit override always wins: it is the escape hatch for a species whose name in
+            # the combo does not match anything on disk, which no amount of lookup can fix.
+            lj = getattr(self, "_layerjson_override", None) or layers_json_for(species)
+            if not lj:
+                self._cw_status = ("no LayerJSON for %s - mouth/claw protection OFF "
+                                   "(see docs/LAYERJSON.md)" % species)
+                return None
             md = mask_dir_for(species)
-            if not lj or not md:
+            if not md:
+                self._cw_status = "no mask folder for %s - protection OFF" % species
                 return None
             data = json.load(open(lj, encoding="utf-8"))
             layers = data["layers"] if isinstance(data, dict) else data
             prefix = detect_mask_prefix(md)
             if not prefix:
+                self._cw_status = "no blend-weight masks in %s - protection OFF" % os.path.basename(md)
                 return None
-            return tp.colour_weight_map(layers, md, "%s.playered_blendweights" % prefix,
-                                        list(self.model.layerColourWeights), shape)
-        except Exception:
+            cw = tp.colour_weight_map(layers, md, "%s.playered_blendweights" % prefix,
+                                      list(self.model.layerColourWeights), shape)
+            if cw is None:
+                # colour_weight_map returns None when it resolved NO mask file at all -- same
+                # symptom as a missing LayerJSON, entirely different cause, so name it.
+                self._cw_status = "masks unreadable in %s - protection OFF" % os.path.basename(md)
+                return None
+            self._cw_status = "protected via %s" % os.path.basename(lj)
+            return cw
+        except Exception as e:
+            self._cw_status = "protection OFF (%s: %s)" % (type(e).__name__, e)
             return None
+
+    def _pattern_from_selected(self):
+        """Load the pattern that is on the mesh currently selected in Blender.
+
+        Reports every failure in the tab's note rather than a dialog, and distinguishes them --
+        "no bridge", "nothing selected" and "selected mesh has no pattern" need different actions
+        from the user, and collapsing them into one message is what makes a feature feel broken.
+        """
+        pt = getattr(self, "pattern_tab", None)
+        if pt is None:
+            return
+        bridge = getattr(self, "bridge", None)
+        if bridge is None:
+            pt.note.setText("no Blender connection - Preview > Reconnect")
+            return
+        try:
+            info = bridge.selected()
+        except Exception as e:
+            pt.note.setText("could not ask Blender: %s: %s" % (type(e).__name__, e))
+            return
+        if not info:
+            pt.note.setText("nothing selected in Blender (select a mesh, then retry)")
+            return
+        path = info.get("pattern_path")
+        if not path:
+            pt.note.setText("%s has no pattern applied" % (info.get("object") or "the selection"))
+            return
+        if not os.path.isfile(path):
+            # The material records where the .fgm CAME FROM; the file can be moved or deleted
+            # afterwards, and the recorded path then points at nothing.
+            pt.note.setText("recorded pattern file is gone: %s" % path)
+            return
+        if pt.load(path):
+            pt.note.setText("from %s: %s" % (info.get("object") or "selection",
+                                             os.path.basename(path)))
+
+    def _on_pattern_changed(self):
+        """Pattern edited: refresh the local overlay now, schedule the Blender push."""
+        self._refresh_texture()
+        t = getattr(self, "_pattern_push_timer", None)
+        if t is not None:
+            t.start()                    # restarts the countdown; only the last edit is sent
+
+    def _pattern_apply_now(self):
+        """'Apply to Blender' pressed: splice the pattern onto the material already on the mesh.
+
+        Deliberately does NOT rebuild the material -- `apply_pattern` unsplices any previous pattern
+        and splices into the existing chain, so a loaded variant keeps its layer stack and grade.
+
+        Unlike the debounced auto-push this one REPORTS why nothing happened. A button that
+        silently does nothing reads as broken, and the two reasons need different actions from the
+        user: no bridge means start the listener, no pattern means open one.
+        """
+        pt = getattr(self, "pattern_tab", None)
+        if pt is None:
+            return
+        if getattr(self, "bridge", None) is None:
+            pt.note.setText("no Blender connection - Preview > Reconnect")
+            return
+        if not pt.is_active():
+            pt.note.setText("no pattern loaded - Open .fgm... or From selected first")
+            return
+        t = getattr(self, "_pattern_push_timer", None)
+        if t is not None:
+            t.stop()                      # a pending debounced push would just repeat this
+        self._push_pattern_to_blender()
+
+    def _push_pattern_to_blender(self):
+        """Send the in-memory pattern to Blender. Silent when there is no bridge or no pattern.
+
+        Never raises and never blocks the UI on a failure: Blender not being open is the normal
+        case while working on textures, not an error worth a dialog.
+        """
+        pt = getattr(self, "pattern_tab", None)
+        bridge = getattr(self, "bridge", None)
+        if pt is None or bridge is None or not pt.is_active():
+            return
+        try:
+            ok, msg = bridge.push_pattern(
+                pt.model,
+                source=os.path.basename(pt.path) if pt.path else "live",
+                index_map=getattr(pt, "index_map_path", None),
+                patchwork_map=getattr(pt, "patchwork_map_path", None))
+        except Exception as e:
+            ok, msg = False, "%s: %s" % (type(e).__name__, e)
+        pt.note.setText(("Blender: " + msg) if ok else ("Blender push failed - " + msg))
+
+    def _update_layerjson_label(self):
+        """Show which LayerJSON is in force, or say plainly that protection is off.
+
+        Deliberately does NOT need a loaded texture: the answer depends only on the species and the
+        override, and the whole point is that it is visible BEFORE you wonder why the teeth changed
+        colour. Colour-coded because a missing file is a wrong-output condition, not information.
+        """
+        lab = getattr(self, "layerjson_label", None)
+        if lab is None:
+            return
+        try:
+            from preview_assets import layers_json_for
+            species = (self.species_combo.currentText() or "").strip()
+            override = getattr(self, "_layerjson_override", None)
+            lj = override or (layers_json_for(species) if species else None)
+        except Exception as e:
+            lab.setText("lookup failed (%s)" % type(e).__name__)
+            lab.setStyleSheet("color: %s;" % theme.COLOURS["error"])
+            return
+        if lj:
+            lab.setText("%s%s" % (os.path.basename(lj), "   [manual override]" if override else ""))
+            lab.setStyleSheet("color: %s;" % theme.COLOURS["success"])
+        else:
+            lab.setText("none for %r - mouth/claw protection OFF"
+                        % (species or "(no species)"))
+            lab.setStyleSheet("color: %s;" % theme.COLOURS["warn"])
+
+    def load_layerjson_override(self):
+        """Pick a LayerJSON by hand, bypassing name-based lookup entirely."""
+        from preview_assets import LAYERJSON_DIR
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load LayerJSON", LAYERJSON_DIR, "LayerJSON (*.json);;All files (*)")
+        if not path:
+            return
+        self._layerjson_override = path
+        self._update_layerjson_label()
+        self._refresh_texture()
+
+    def clear_layerjson_override(self):
+        self._layerjson_override = None
+        self._update_layerjson_label()
+        self._refresh_texture()
+
+    def generate_layerjson(self, folder):
+        """Build a LayerJSON from an extracted species folder. Returns (path, message).
+
+        `path` is None on failure and the message says why -- the caller shows it. Kept separate
+        from the dialog so it is testable without a file picker.
+
+        Imports are LOCAL and guarded: `export_layers` pulls in `layer_chain`, which reaches for
+        cobra-tools and the game data on the OVL route. The folder route needs none of that, but a
+        module-scope import would make the whole editor fail to start on a machine without them.
+        """
+        import os as _os
+        if not folder or not _os.path.isdir(folder):
+            return None, "not a folder: %s" % folder
+        try:
+            sys.path.insert(0, _os.path.join(HERE, "vendor"))
+            import export_layers
+            species, sex = export_layers.species_sex_from_path(folder)
+            path, layers = export_layers.export_from_folder(folder, species, sex)
+        except Exception as e:
+            return None, "%s: %s" % (type(e).__name__, e)
+
+        used = sum(1 for L in layers if L.get("used"))
+        protected = [L.get("swatch") for L in layers if L.get("swatch_colour_weight") == 0]
+        # The count of ZERO-weight swatches is the thing worth surfacing: it is what actually
+        # protects mouth, teeth and claws, and a file with none will preview as if it were missing.
+        msg = ("%s\n\n%s %s - %d layers (%d used)\nprotected swatches: %s"
+               % (path, species, sex, len(layers), used,
+                  ", ".join(protected) if protected else "NONE - mouth will still be painted"))
+        return path, msg
+
+    def generate_layerjson_dialog(self):
+        folder = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Pick the EXTRACTED species folder (the one with the layer FGMs)")
+        if not folder:
+            return
+        path, msg = self.generate_layerjson(folder)
+        if path is None:
+            QtWidgets.QMessageBox.warning(self, "Generate LayerJSON", msg)
+            return
+        # The lookup index is cached on the LayerJSON directory's mtime; writing a file moves it,
+        # but drop the cache explicitly rather than relying on filesystem timestamp granularity.
+        try:
+            import preview_assets
+            preview_assets._LJ_CACHE = None
+        except Exception:
+            pass
+        QtWidgets.QMessageBox.information(self, "Generate LayerJSON", msg)
+        self._refresh_texture()
 
     def _probe_pixel(self, col, row):
         """Report what the grade does to one texel: its colour in and out, and WHICH grade it took.
@@ -738,7 +1025,11 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
             from preview_bridge import model_to_block
             block = model_to_block(self.model)
             src = self.texture_view.source[row:row + 1, col:col + 1, :]
-            h = self.texture_height.value() / 1000.0
+            # Probe THIS texel's own height when we have the map -- otherwise the readout reports a
+            # colour the texel never had, which is the exact confusion this feature exists to end.
+            hmap = getattr(self, 'texture_heightmap', None)
+            h = (self.texture_height.value() / 1000.0 if hmap is None
+                 else hmap[row:row + 1, col:col + 1])
             cwmap = getattr(self, 'texture_weight', None)
             cw = 1.0 if cwmap is None else cwmap[row:row + 1, col:col + 1, :]
             out = tp.grade_image(src, block, height=h, colour_weight=cw)
@@ -766,8 +1057,12 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
             raise RuntimeError("no diffuse loaded")
         full = tp.load_texture(path, max_side=None)
         cw = self._colour_weight_for(full.shape)
+        # Full-res save: recompute the height at THIS resolution rather than reusing the preview's,
+        # which is built for the downscaled copy and would not broadcast.
+        hm_full = self._height_for(full.shape)
         graded = tp.grade_image(full, model_to_block(self.model),
-                                height=self.texture_height.value() / 1000.0,
+                                height=(self.texture_height.value() / 1000.0
+                                        if hm_full is None else hm_full),
                                 colour_weight=1.0 if cw is None else cw)
         # Apply the pattern here TOO. This path grades independently of _refresh_texture, so
         # without this the saved file silently lacks the overlay the screen is showing -- the
@@ -835,7 +1130,8 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
             import texture_preview as tp
             from preview_bridge import model_to_block
             block = model_to_block(self.model)
-            h = self.texture_height.value() / 1000.0
+            hm = getattr(self, 'texture_heightmap', None)
+            h = self.texture_height.value() / 1000.0 if hm is None else hm
             cw = getattr(self, 'texture_weight', None)
             graded = tp.grade_image(self.texture_view.source, block, height=h,
                                     colour_weight=1.0 if cw is None else cw)
@@ -847,7 +1143,16 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
                 graded = pt.composite_onto(graded)
             after = tp.to_qimage(graded)
             self.texture_view.set_graded(after)
-            self.texture_note.setText("height %.3f" % h)
+            # Say whether mouth/claw protection is actually on. Silence here is what made a
+            # broken preview indistinguishable from a working one.
+            status = getattr(self, "_cw_status", "")
+            hstat = getattr(self, "_h_status", "")
+            # Say WHICH height is driving the gradient. A slider value and a composited map give
+            # very different tints (68 deg apart on variant_01_11_edit2), so "which one am I
+            # looking at" is not a detail.
+            hlabel = hstat if hstat.startswith("composited") else ("height %.3f" % h
+                                                                   if not hstat else hstat)
+            self.texture_note.setText("%s%s" % (hlabel, ("  -  " + status) if status else ""))
             win = getattr(self, "texture_window", None)
             if win is not None and win.isVisible():
                 win._view.set_graded(after)
@@ -860,6 +1165,9 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
         self.texture_path = path                # remembered so Save can re-grade at FULL res
         linear = tp.load_texture(path)          # decode ONCE; it is the expensive part
         self.texture_weight = self._colour_weight_for(linear.shape)
+        # Cached alongside the weight map: both are derived from the same masks and only change
+        # when the texture or the species does, so recomputing per keystroke would be waste.
+        self.texture_heightmap = self._height_for(linear.shape)
         before = tp.to_qimage(linear)
         self.texture_view.set_source(linear, before)
         win = getattr(self, "texture_window", None)
@@ -1067,7 +1375,7 @@ class VariantEditorWindow(QtWidgets.QMainWindow):
             from preview_bridge import model_to_block
             block = model_to_block(self.model)
             colours = ramp(block, steps=96)
-            note = ("no coefficients for seed %d — flat (in game the gradient is still there)"
+            note = ("no coefficients for seed %d â€” flat (in game the gradient is still there)"
                     % self.model.seed) if is_flat(block) else ""
         except Exception as e:
             self.palette_strip.set_ramp([], "colour preview unavailable: %s" % e)
@@ -1221,10 +1529,14 @@ def selftest():
     w.set_field("seed", 9)
     assert w.palette_strip._note == "", "note must clear when coefficients exist"
 
-    # the body scrolls, and the window can shrink well below its content height
-    assert isinstance(w.centralWidget(), QtWidgets.QScrollArea)
-    assert w.centralWidget().widgetResizable()
-    content_h = w.centralWidget().widget().sizeHint().height()
+    # The Variant tab scrolls, and the window can shrink well below its content height. The
+    # Pattern tab changed the central widget from the scroll area itself to a QTabWidget, so test
+    # the actual Variant page rather than preserving the pre-tab outer-widget assumption.
+    assert isinstance(w.centralWidget(), QtWidgets.QTabWidget)
+    variant_scroll = w.tabs.widget(0)
+    assert isinstance(variant_scroll, QtWidgets.QScrollArea)
+    assert variant_scroll.widgetResizable()
+    content_h = variant_scroll.widget().sizeHint().height()
     assert w.minimumHeight() < content_h, (w.minimumHeight(), content_h)
     w.resize(430, 320)
     assert w.width() == 430 and w.height() == 320, (w.width(), w.height())
@@ -1244,6 +1556,27 @@ def selftest():
     assert fake.pushes == [], "push must be debounced, not immediate"
     w2._push_now()
     assert fake.pushes == [1.2], fake.pushes       # one push, carrying the latest value
+
+    # Pattern edits use their own debounce and send the unsaved in-memory model. A blank template
+    # is intentionally inert; give it one opacity key so it represents an active pattern.
+    class _FakePatternBridge(_FakeBridge):
+        def __init__(self):
+            super().__init__()
+            self.patterns = []
+        def push_pattern(self, model, **kwargs):
+            self.patterns.append((model.to_dict(), kwargs))
+            return True, "mesh (material)"
+
+    pbridge = _FakePatternBridge()
+    w4 = VariantEditorWindow(bridge=pbridge)
+    w4.pattern_tab.model.opacityKeys[0] = (0, 1.0)
+    w4._on_pattern_changed()
+    w4._on_pattern_changed()
+    assert w4._pattern_push_timer.isActive(), "pattern edit must schedule a Blender push"
+    assert pbridge.patterns == [], "pattern push must be debounced, not immediate"
+    w4._push_pattern_to_blender()
+    assert len(pbridge.patterns) == 1, pbridge.patterns
+    assert "Blender: mesh (material)" in w4.pattern_tab.note.text(), w4.pattern_tab.note.text()
 
     # a listener that dies mid-session degrades to a red indicator, it does not raise
     class _DeadBridge:

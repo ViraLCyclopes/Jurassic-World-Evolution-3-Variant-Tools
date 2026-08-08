@@ -42,8 +42,13 @@ import bpy
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+# `patchwork` lives at the package root, beside fgm_io/coeff_store, and ships with the add-on.
+PKG = os.path.dirname(HERE)
+if PKG not in sys.path:
+    sys.path.insert(0, PKG)
 
 import blender_parts
+import patchwork
 
 GROUP_PREFIX = "JWE3_Pattern"
 
@@ -82,6 +87,20 @@ def lut_image(name, lut):
             v = vals[x]
             px.extend([v[0], v[1], v[2], 1.0] if len(v) >= 3 else [v[0], v[0], v[0], 1.0])
     img.pixels.foreach_set(px)
+    # FLUSH THE BUFFER, THEN DROP THE GPU COPY. `pixels.foreach_set` writes the CPU-side buffer
+    # only. `update()` marks it dirty, but that alone was NOT enough in practice -- the viewport
+    # kept showing the previous LUT until the shading mode was toggled, which is just a heavy-handed
+    # way of forcing a re-upload. `gl_free()` releases the uploaded texture so the next draw has to
+    # fetch the new pixels.
+    #
+    # This matters because the image is reused BY NAME (above), so an edited pattern writes into the
+    # same datablock the GPU is already holding. The workaround people reach for -- unplug and
+    # replug the node -- recompiles the shader and so appears to fix it, which hides the real cause.
+    img.update()
+    try:
+        img.gl_free()
+    except Exception:
+        pass                    # not fatal: worst case the viewport needs a nudge, as before
     return img
 
 
@@ -164,14 +183,34 @@ def _build_ramp(g, stops, index_socket, label):
     return r.outputs["Color"], r.outputs["Alpha"]
 
 
-def build_group(name, lut, model=None):
-    """The `JWE3_Pattern` node tree. In: Albedo, Index. Out: Albedo, Emissive."""
+def _mget(model, key, default):
+    """Read a field off the pattern model, which arrives as a DICT here, not a PatternModel.
+
+    `preview_bridge.push_pattern` sends `model.to_dict()` over the wire and `export_pattern` writes
+    JSON, so everything in this module sees plain dicts -- `ramp_stops` already assumes that. Using
+    getattr() on a dict silently returns the default: `usePatchwork` read that way is always False,
+    so the patchwork gate would never be built and nothing would report an error. Accept both.
+    """
+    if model is None:
+        return default
+    if isinstance(model, dict):
+        return model.get(key, default)
+    return getattr(model, key, default)
+
+
+def build_group(name, lut, model=None, gated=False):
+    """The `JWE3_Pattern` node tree. In: Albedo, Index, Source, Patchwork. Out: Albedo, Emissive.
+
+    `gated` builds the patchwork zone gate. Only pass it when a patchwork map will actually be
+    wired to the `Patchwork` input AND the model arms the gate -- an unconnected socket reads 0.0,
+    which is zone 0, and would switch the whole mesh off for most flag values.
+    """
     old = bpy.data.node_groups.get(name)
     if old is not None:
         bpy.data.node_groups.remove(old)
     g = bpy.data.node_groups.new(name, "ShaderNodeTree")
     for n, t in (("Albedo", "NodeSocketColor"), ("Index", "NodeSocketFloat"),
-                 ("Source", "NodeSocketFloat")):
+                 ("Source", "NodeSocketFloat"), ("Patchwork", "NodeSocketFloat")):
         g.interface.new_socket(n, in_out="INPUT", socket_type=t)
     # Emissive is sampled anyway -- row 1 of the image exists whether or not anything reads it --
     # so expose it rather than leave a texture node feeding nothing. `apply_pattern` wires only
@@ -227,6 +266,30 @@ def build_group(name, lut, model=None):
         g.links.new(r_alpha, sel_o.inputs[3])
         opacity_src = sel_o.outputs[0]
 
+    # PATCHWORK GATE. Multiply the pattern's opacity by 0 where the texel's zone is switched off,
+    # which reproduces the shader branching past the whole pattern block. `flags` is fixed at build
+    # time, so the gate is a constant-interpolation ramp rather than bit arithmetic in nodes.
+    # `patchwork.gate_ramp_stops` is the same rule as `patchwork.gate_mask`, pinned in its selftest.
+    if gated:
+        gr = g.nodes.new("ShaderNodeValToRGB")
+        gr.label = "patchwork gate"
+        gcr = gr.color_ramp
+        gcr.interpolation = "CONSTANT"
+        stops = patchwork.gate_ramp_stops(_mget(model, "patchworkFlags", 31))
+        while len(gcr.elements) > 1:
+            gcr.elements.remove(gcr.elements[-1])
+        for i, (pos, val) in enumerate(stops):
+            el = gcr.elements[0] if i == 0 else gcr.elements.new(pos)
+            el.position = pos
+            el.color = (val, val, val, 1.0)
+        g.links.new(gin.outputs["Patchwork"], gr.inputs["Fac"])
+        gmul = g.nodes.new("ShaderNodeMath")
+        gmul.operation = "MULTIPLY"
+        gmul.label = "opacity x patchwork gate"
+        g.links.new(opacity_src, gmul.inputs[0])
+        g.links.new(gr.outputs["Color"], gmul.inputs[1])
+        opacity_src = gmul.outputs[0]
+
     mix = g.nodes.new("ShaderNodeMix")
     mix.data_type, mix.blend_type = "RGBA", "MIX"
     mix.label = "albedo -> pattern colour, by opacity"
@@ -234,8 +297,13 @@ def build_group(name, lut, model=None):
     g.links.new(gin.outputs["Albedo"], mix.inputs[6])
     g.links.new(colour_src, mix.inputs[7])
     g.links.new(mix.outputs[2], gout.inputs["Albedo"])
-    # Emissive stays on the image tap in BOTH modes: every pattern measured carries exactly ONE
-    # emissive key, so a ramp for it would be a constant with extra steps. It is exposed, not shaded.
+    # Emissive stays on the image tap in BOTH modes -- which is correct, because the baked LUT image
+    # already carries the interpolation between keys.
+    #
+    # (The old reason given here -- "every pattern measured carries exactly ONE emissive key" -- is
+    # WRONG. Surveyed 210 pattern FGMs 2026-08-07: parasaurolophus_pattern_ccpink_00 has EIGHT
+    # non-zero emissive keys, indominusrex_pattern_01_07 has seven, and the dedicated
+    # *_pattern_lux_00 files have five. The image tap handles all of them; only the premise was bad.)
     g.links.new(taps["emissive"].outputs["Color"], gout.inputs["Emissive"])
 
     _layout_group(g, gin, gout, taps)
@@ -275,7 +343,7 @@ def _layout_group(g, gin, gout, taps):
     gout.location = (c[6], 0.0)
 
 
-def apply_pattern(mat, data, index_map=None, tag="", source=SOURCE_IMAGE):
+def apply_pattern(mat, data, index_map=None, tag="", source=SOURCE_IMAGE, patchwork_map=None):
     """Splice this pattern over `mat`'s surface chain. Returns the group node.
 
     Unsplices any existing pattern FIRST, so re-applying replaces rather than stacks -- two grade
@@ -289,13 +357,24 @@ def apply_pattern(mat, data, index_map=None, tag="", source=SOURCE_IMAGE):
     socket keeps its default and the whole mesh reads ONE LUT entry -- a flat colour, which is
     correct behaviour for "no index map" but looks like a bug, so the caller should pass one
     whenever it can.
+
+    `patchwork_map` is an optional path to the species' `u_basePatchworkMap` PNG. The gate is built
+    only when that map exists AND the model arms it (usePatchwork on, flags < 31) -- the same two
+    conditions the game requires, both verified in game 2026-08-08. 100 patternsets ship
+    a patchwork map, so no map is the normal case, not a fault.
     """
     blender_parts.unsplice(mat, GROUP_PREFIX)
 
     lut = data["lut"]
     name = f"{GROUP_PREFIX}_{tag}" if tag else GROUP_PREFIX
     node = mat.node_tree.nodes.new("ShaderNodeGroup")
-    node.node_tree = build_group(name, lut, data.get("model"))
+    _model = data.get("model")
+    _gated = bool(
+        patchwork_map and os.path.isfile(patchwork_map)
+        and _mget(_model, "usePatchwork", False)
+        and int(_mget(_model, "patchworkFlags", 31)) < 31
+    )
+    node.node_tree = build_group(name, lut, _model, gated=_gated)
     if "Source" in node.inputs:
         node.inputs["Source"].default_value = source
     node.name = name                       # MUST start with GROUP_PREFIX: unsplice and CHAIN_POS
@@ -314,16 +393,64 @@ def apply_pattern(mat, data, index_map=None, tag="", source=SOURCE_IMAGE):
         tex.location = (node.location.x - 320, node.location.y - 260)
         mat.node_tree.links.new(tex.outputs["Color"], node.inputs["Index"])
 
+    if _gated:
+        pw = mat.node_tree.nodes.new("ShaderNodeTexImage")
+        pw.name = f"{GROUP_PREFIX}_PatchworkMap"
+        pw.label = "patchwork map"
+        pwimg = bpy.data.images.get(os.path.basename(patchwork_map))
+        if pwimg is None:
+            pwimg = bpy.data.images.load(patchwork_map, check_existing=True)
+        pwimg.colorspace_settings.name = "Non-Color"     # a zone id, never sRGB
+        pw.interpolation = "Closest"                     # zone ids: never interpolate between them
+        pw.image = pwimg
+        pw.location = (node.location.x - 320, node.location.y - 520)
+        mat.node_tree.links.new(pw.outputs["Color"], node.inputs["Patchwork"])
+
+    # ---- EMISSIVE ("lux") -> the BSDF's emission input.
+    #
+    # Row 1 of the LUT was always baked and exposed, and nothing consumed it, so a pattern with
+    # emissive keys rendered exactly like one without: no glow in dark lighting, which is the whole
+    # point of the CC/lux patterns. Wire it up.
+    #
+    # Safe for ordinary patterns: their emissive row is all zeros, and black emission adds nothing.
+    # Strength is set to 1.0 only when the row actually carries signal, so a non-emissive pattern
+    # cannot leave a material glowing faintly.
+    bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if bsdf is not None and "Emissive" in node.outputs:
+        col_in = bsdf.inputs.get("Emission Color") or bsdf.inputs.get("Emission")
+        str_in = bsdf.inputs.get("Emission Strength")
+        if col_in is not None:
+            mat.node_tree.links.new(node.outputs["Emissive"], col_in)
+        if str_in is not None:
+            emis_rows = (lut or {}).get("emissive") or []
+            has_signal = any(any(float(c) > 1e-6 for c in v[:3]) for v in emis_rows if v)
+            str_in.default_value = 1.0 if has_signal else 0.0
+
     # sockets, not names: splice_at links them directly
     blender_parts.splice_at(mat, node, node.inputs["Albedo"], node.outputs["Albedo"], GROUP_PREFIX)
     # A new node has no location and lands at the origin -- on top of the START of the chain.
     # layout_chain recomputes the tail from an anchor, so it is safe to call every time.
     blender_parts.layout_chain(mat)
+    # Tag the tree too: rebuilding the group and rewriting the LUT changes what the material
+    # evaluates to, but neither necessarily marks the material dirty, so a live preview can sit on
+    # the old compile. Cheap, and it makes "apply" mean "visible" without touching a link.
+    mat.node_tree.update_tag()
+    mat.update_tag()
     return node
 
 
 def unsplice(mat):
-    """Remove the pattern group, relinking around it. True if one was there."""
+    """Remove the pattern group, relinking around it. True if one was there.
+
+    Also drops the emission back to 0. Removing the group takes its link with it, but the STRENGTH
+    is a plain value on the BSDF -- leaving it at 1.0 would keep whatever colour the socket falls
+    back to glowing after the pattern is gone.
+    """
+    bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if bsdf is not None:
+        s = bsdf.inputs.get("Emission Strength")
+        if s is not None and not s.is_linked:
+            s.default_value = 0.0
     return blender_parts.unsplice(mat, GROUP_PREFIX)
 
 
